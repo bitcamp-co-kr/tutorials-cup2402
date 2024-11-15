@@ -1,5 +1,8 @@
 # tutorials-cup2402
+- updated : 11-15
 
-## clone at 10/30
+## team : Inspiration
+- 구성원
 
-## edit in remote
+## Project : Touration
+
