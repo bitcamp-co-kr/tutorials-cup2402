@@ -2,7 +2,7 @@
 - updated : 11-15
 
 ## team : Inspiration
-- 구성원
+- 권용헌
 
 ## Project : Touration
 
