@@ -15,7 +15,7 @@ public class HomeController {
 	public String home() {
 		
 		// 템플릿엔진이 반환하는 이름.html 을 찾는다.
-		return "kaira/index"; //src/respources/templates/kaira/index.html
+		return "index"; //src/respources/templates/index.html
 	}
 
 }
