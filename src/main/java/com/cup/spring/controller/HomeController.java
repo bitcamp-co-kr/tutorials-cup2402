@@ -1,21 +1,58 @@
 package com.cup.spring.controller;
 
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;	// spring 에서 자동으로 생성, 관리, 주입
 import org.springframework.web.bind.annotation.GetMapping;
+
+import lombok.extern.slf4j.Slf4j;
 
 // 요청 URL 을 받는 클래스
 // 세부 주소에 따라 실행될 메서드들을 정의
 // 역할 - 애노테이션을 붙여서 설정 자동화
-
+// 모든 컨트롤러에는 로깅(logging) 기능을 추가해라 : 레벨별로 출력을 선택할 수 있다.
+@Slf4j
 @Controller
 public class HomeController {
 
 	// HTTP request get : 쿼리스트링으로 데이터를 보낸다. (목적 페이지 보여줘라)
-	@GetMapping("/")
-	public String home() {
+	// http://사이트주소, http://사이트주소/ 
+	@GetMapping({ "", "/", "/index" })
+	public String home( Model model) {
+		log.info("home: {}", "request :/index");
+
+		// 지정된 URL 에 대한 처리를 진행
+		
+		// 전달할 data 를 Model 에 담기: Map
+		model.addAttribute("serviceName", "CUPshop"); // key : value 형식 데이터 모음
 		
 		// 템플릿엔진이 반환하는 이름.html 을 찾는다.
-		return "index"; //src/respources/templates/index.html
+		return "index"; // src/main/resources/templates/index.html
+	}
+
+	@GetMapping("/about")
+	public String about( Model model) {
+		log.info("home: {}", "request :/about");
+
+		// 지정된 URL 에 대한 처리를 진행
+		
+		// 전달할 data 를 Model 에 담기: Map
+		model.addAttribute("serviceName", "<strong>CUP-sample</strong>"); // key : value 형식 데이터 모음
+		
+		// 템플릿엔진이 반환하는 이름.html 을 찾는다.
+		return "about"; // src/main/resources/templates/index.html
+	}
+
+	@GetMapping("/contact")
+	public String contact( Model model) {
+		log.info("home: {}", "request :/contact");
+
+		// 지정된 URL 에 대한 처리를 진행
+		
+		// 전달할 data 를 Model 에 담기: Map
+		model.addAttribute("serviceName", "<strong>CUP-sample</strong>"); // key : value 형식 데이터 모음
+		
+		// 템플릿엔진이 반환하는 이름.html 을 찾는다.
+		return "contact";
 	}
 
 }
