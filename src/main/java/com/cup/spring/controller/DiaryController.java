@@ -8,14 +8,24 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+// RestController 들은
+//	요청을 받고, 응답할 때 JSON 형식을 사용한다.
+//	Spring 에는 ObjectMapper 로 변환 처리한다. 
 @RestController
 @RequestMapping("/diary")
 public class DiaryController {
 
-    @Autowired
+	// Spring Dependency Injection (DI)
     private DiaryService diaryService;
 
-    // 모든 기록 조회
+    @Autowired
+    public DiaryController(DiaryService diaryService) {
+    	// 생성자 주입 방식을 쓰세요...
+		super();
+		this.diaryService = diaryService;
+	}
+
+	// 모든 기록 조회
     @GetMapping
     public List<DiaryEntry> getAllEntries() {
         return diaryService.getAllDiaryEntries();

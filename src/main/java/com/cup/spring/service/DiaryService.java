@@ -1,6 +1,10 @@
 package com.cup.spring.service;
 
 import org.springframework.stereotype.Service;
+
+// 패키지가 다르면 반드시 import 해야 합니다.
+import com.cup.spring.model.DiaryEntry;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -10,7 +14,9 @@ public class DiaryService {
 
     // 여행 기록을 저장할 임시 데이터베이스 (예: List)
     private List<DiaryEntry> diaryEntries = new ArrayList<>();
-    private int idCounter = 1; // 기록 ID를 위한 카운터
+    private Long idCounter = 1L; // 기록 ID를 위한 카운터
+    // int 형 값(상수) : 1
+    // Long 형 값(상수) : 1L
 
     // 여행 기록 추가
     public DiaryEntry addDiaryEntry(String title, String content, double latitude, double longitude, String imageUrl) {

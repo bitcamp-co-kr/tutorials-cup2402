@@ -4,6 +4,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### each profile .properties, .yml
+application-local.*
+
 ### STS ###
 .apt_generated
 .classpath
