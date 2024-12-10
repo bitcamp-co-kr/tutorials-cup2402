@@ -3,6 +3,9 @@
 
 ## team : Inspiration
 - 권용헌
+- 김수호
+- 주윤성
+- 우진식
 
 ## Project : Touration
 
