@@ -5,11 +5,16 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-
+// 롬복에서 생성자를 모두 생성해야 Entity 로 사용 가능
 @Builder
+@AllArgsConstructor
+// JPA 는 기본생성자가 필요하다.
+@NoArgsConstructor
 @Getter
 // JPA
 @Entity

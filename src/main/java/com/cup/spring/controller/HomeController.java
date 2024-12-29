@@ -18,16 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Controller
 public class HomeController {
-	// final : 한 번 초기화, 이후 수정은 하지 않는다.
-	//	반드시 초기화를 해야 하는 필드 : 스프링에서 자동으로 초기화한 객체를 생성하고
-	//	필요한 곳에 넣어준다.(의존성을 주입한다. DI )
+
 	private final ShopInfoService shopinfoService;
-	
-//	public HomeController(ShopInfoService shopinfoService) {
-//		super();
-//		this.shopinfoService = shopinfoService;
-//	}
-	
+		
 	// HTTP request get : 쿼리스트링으로 데이터를 보낸다. (목적 페이지 보여줘라)
 	// http://사이트주소, http://사이트주소/ 
 	@GetMapping({ "", "/", "/index" })
@@ -45,5 +38,6 @@ public class HomeController {
 		return "index"; // src/main/resources/templates/index.html
 	}
 
+	
 
 }

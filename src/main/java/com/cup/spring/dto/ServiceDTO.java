@@ -3,6 +3,9 @@ package com.cup.spring.dto;
 import lombok.Builder;
 import lombok.Data;
 
+// 데이터를 교환하기 위한 type
+// 프론트와 백엔드 간...
+// 서비스 간 ...
 @Builder
 @Data
 public class ServiceDTO {

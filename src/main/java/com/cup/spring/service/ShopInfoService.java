@@ -9,4 +9,6 @@ public interface ShopInfoService {
 	
 	public ServiceDTO getServiceInfo();
 
+	public void updateInfo(ServiceDTO dto);
+
 }

@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import com.cup.spring.dto.ServiceDTO;
 import com.cup.spring.service.ShopInfoService;
+import com.cup.spring.service.ShopProductService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,7 @@ public class ShopController {
 
 	// 스프링 컨테이너로부터 받는다 DI
 	private final ShopInfoService shopinfoService;
+	private final ShopProductService productService;
 
 	
 	@GetMapping({"","/"})
@@ -28,6 +30,8 @@ public class ShopController {
 		// URL 경로에 따라 파일들의 경로를 확인
 		model.addAttribute("serviceName", "CUPshop"); // key : value 형식 데이터 모음
 		model.addAttribute("service", shopinfoService.getServiceInfo());
+		
+		model.addAttribute("productList", productService.getAll());
 		
 		return "shop";
 	}

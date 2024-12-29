@@ -30,7 +30,8 @@ public class DefaultShopInfoService implements ShopInfoService {
 		long count = shopinfoRepository.count();
 		if( count > 0 ) {
 			List<ShopInfo> info = shopinfoRepository.findAll();
-			ShopInfo a = info.get(0);
+			// 배열의 요소번호-0 1...... , 요소개수 12 [11]
+			ShopInfo a = info.get(info.size()-1);	// 현재 저장된 요소 중 마지막 요소의 번호
 			// Entity 는 DB table 을 의미 -> 사용자에게 응답하지 않는다.
 			// DTO 컨트롤러용 자료형으로 변환하여 반환하다.
 			// Mapper : 변환기를 사용해서 간단히 할 수 잇다.
@@ -41,13 +42,29 @@ public class DefaultShopInfoService implements ShopInfoService {
 					.email(a.getEmail())
 					.build();
 		}
-		// count == 0
+		// count == 0, 현재 저장된게 없다.
 		return ServiceDTO.builder()
 						.name("CUPshop")
 						.address("부산광역시 부산가톨릭대학교")
 						.phone("xxx-1111-3333")
 						.email("cupshop@test.com")
 						.build();
+	}
+
+	@Override
+	public void updateInfo(ServiceDTO dto) {
+		log.info("updateinfo : {}", dto);
+		// ModelMapper, StructMapper
+		ShopInfo entity = ShopInfo.builder()
+				.name(dto.getName())
+				.email(dto.getEmail())
+				.phone(dto.getPhone())
+				.address(dto.getAddress())
+				.build();
+		// PK 가 없으면 insert 명령으로 추가하기 	entity.getSiPk()
+		//	있으면 update 명령으로 수정하기
+		shopinfoRepository.save(entity);		
+		
 	}
 
 }
