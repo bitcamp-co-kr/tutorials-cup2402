@@ -26,6 +26,8 @@ public class HomeController {
 	@GetMapping({ "", "/", "/index" })
 	public String home( Model model) {
 		log.info("home: {}", "request :/index");
+		// 1. 사용자 확인 : 로그인 했냐 안했냐
+		// 2. 권한이 있냐
 
 		// 지정된 URL 에 대한 처리를 진행
 		

@@ -30,6 +30,7 @@ public class ApiRequestFilter extends OncePerRequestFilter {
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException {
 		// TODO Auto-generated method stub
+		// 요청 시 직접 URL 을 확인하는 코드를 작성
 		if(antPathMatcher.match(urlpattern, request.getRequestURI())) {		
 			log.info("ApiRequestFilter ---- ");
 			
@@ -44,7 +45,7 @@ public class ApiRequestFilter extends OncePerRequestFilter {
 
 	private boolean checkAuthHeader(HttpServletRequest request) {
 		boolean checkResult = false;
-		
+
 		String authHeader = request.getHeader("Authorization");
 		if( StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
 			log.info("{}", authHeader);

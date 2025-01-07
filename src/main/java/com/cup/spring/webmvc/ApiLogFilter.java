@@ -12,18 +12,16 @@ import jakarta.servlet.ServletResponse;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-//@Component
-//@WebFilter(urlPatterns="/")
-//@Order(1)	// 여러 개의 필터 등록 시 순서 지정 가능, 안하면 마지막 순서
 public class ApiLogFilter implements Filter {
-
+	// 연결된 URL 이 뭔지를 찾아봐야 한다.
 	@Override
 	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
 			throws IOException, ServletException {
+		// TODO Auto-generated method stub
+		log.info("apiLogFilter");
+		// 다음 넘어가기
+//		chain.doFilter(request, response);
 		
-		log.info("doFilter -- entering -------------------");
-		chain.doFilter(request, response);
-		log.info("doFilter -- outtering -------------------");
 	}
 
 }

@@ -10,6 +10,7 @@ import com.cup.spring.webmvc.ApiLogFilter;
 import com.cup.spring.webmvc.ApiRequestFilter;
 import com.cup.spring.webmvc.ControllerLogInterceptor;
 
+// 스프링 기반 개발 시 설정용 클래스
 @Configuration
 public class ServletFilterConfig implements WebMvcConfigurer {
 
@@ -20,7 +21,9 @@ public class ServletFilterConfig implements WebMvcConfigurer {
 
     @Bean
     public FilterRegistrationBean<ApiLogFilter> firstFilter(){
-        FilterRegistrationBean<ApiLogFilter> registrationBean = new FilterRegistrationBean<>();
+        // 객체 생성하는 클래스 : factory
+    	// 외부에서 URL 설정하고 생성
+    	FilterRegistrationBean<ApiLogFilter> registrationBean = new FilterRegistrationBean<>();
         registrationBean.setFilter(new ApiLogFilter());
         registrationBean.addUrlPatterns("/api/v1/*");
         registrationBean.setOrder(1);
@@ -30,6 +33,7 @@ public class ServletFilterConfig implements WebMvcConfigurer {
 
     @Bean
     public ApiRequestFilter apiRequestFilter() {
+    	// Filter 구현 클래스에서 내부적으로 URL 을 확인하도록 함.
     	return new ApiRequestFilter("/api/v2/*");
     }
     

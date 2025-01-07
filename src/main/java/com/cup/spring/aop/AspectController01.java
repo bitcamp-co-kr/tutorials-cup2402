@@ -18,7 +18,7 @@ public class AspectController01 {
 
 	@Pointcut("within(com.cup.spring.controller..*)")
 	public void requestMethods() {
-		
+		// 지정된 패키지 또는 클래스
 	}
 	
     @Around("requestMethods()")
@@ -27,6 +27,7 @@ public class AspectController01 {
         Object[] args = joinPoint.getArgs();
         log.info("==> {} with args: {}", methodName, Arrays.toString(args));
         try {
+        	// 지정된 클래스의 메서드 실행
             Object result = joinPoint.proceed();
             log.info("=== {} result: {}", methodName, result);
             return result;

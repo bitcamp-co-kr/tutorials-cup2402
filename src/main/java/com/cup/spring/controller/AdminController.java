@@ -25,6 +25,8 @@ public class AdminController {
 	@GetMapping({"","/"})
 	public String manager( Model model) {
 		log.info("manage : {}", "for manager");
+		// 1. 사용자 확인 : 로그인 했냐 안했냐
+		// 2. 권한이 있냐
 
 		// 사이트의 연락처 정보를 화면에 보여주기 위해
 		ServiceDTO info = shopinfoService.getServiceInfo();

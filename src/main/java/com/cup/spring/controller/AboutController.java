@@ -25,6 +25,8 @@ public class AboutController {
 	// HTTP 요청 method(명령)
 	@GetMapping({"", "/"})
 	public String about( Model model) {
+		// 1. 사용자 확인 : 로그인 했냐 안했냐
+		// 2. 권한이 있냐
 		
 		model.addAttribute("serviceName", "CUPshop"); // key : value 형식 데이터 모음
 		model.addAttribute("service", shopinfoService.getServiceInfo());
