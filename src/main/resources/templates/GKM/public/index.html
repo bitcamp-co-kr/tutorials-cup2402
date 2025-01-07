@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escape Room</title>
+
+    <!-- A-Frame 및 컴포넌트 스크립트 -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.3.2/dist/aframe-environment-component.min.js"></script>
+    <script src="https://cdn.jsdeliver.net/gh/c-frame/aframe-physics-system@4.2.2/dist/aframe-physics-system.min.js"></script>
+    
+    <!-- 캐릭터 움직임 컨트롤 스크립트 수정 -->
+    <script>
+      AFRAME.registerComponent('character-movement', {
+        init: function () {
+          this.model = this.el;
+          this.speed = 0.1;
+          this.moveVector = new THREE.Vector3();
+          
+          // 마우스 이벤트를 위한 변수들
+          this.isMouseDown = false;
+          this.previousMouseX = 0;
+          this.previousMouseY = 0;
+          this.mouseSensitivity = 0.002;
+          this.rotationX = 0; // 상하 회전을 위한 변수 추가
+          
+          // 키보드 상태 추적
+          this.keys = {
+            w: false,
+            s: false,
+            a: false,
+            d: false
+          };
+          
+          // 키보드 이벤트
+          document.addEventListener('keydown', (e) => {
+            if (this.keys.hasOwnProperty(e.key.toLowerCase())) {
+              this.keys[e.key.toLowerCase()] = true;
+            }
+          });
+          
+          document.addEventListener('keyup', (e) => {
+            if (this.keys.hasOwnProperty(e.key.toLowerCase())) {
+              this.keys[e.key.toLowerCase()] = false;
+            }
+          });
+          
+          // 마우스 이벤트
+          document.addEventListener('mousedown', (e) => {
+            this.isMouseDown = true;
+            this.previousMouseX = e.clientX;
+            this.previousMouseY = e.clientY;
+          });
+          
+          document.addEventListener('mouseup', () => {
+            this.isMouseDown = false;
+          });
+          
+          document.addEventListener('mousemove', (e) => {
+            if (this.isMouseDown) {
+              const deltaX = e.clientX - this.previousMouseX;
+              const deltaY = e.clientY - this.previousMouseY;
+              
+              // 좌우 회전은 캐릭터와 함께
+              this.model.object3D.rotation.y -= deltaX * this.mouseSensitivity;
+              
+              // 상하 회전은 시점만
+              this.rotationX -= deltaY * this.mouseSensitivity;
+              this.rotationX = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.rotationX));
+              
+              this.previousMouseX = e.clientX;
+              this.previousMouseY = e.clientY;
+            }
+          });
+        },
+        
+        tick: function() {
+          // 이동 방향 계산
+          this.moveVector.set(0, 0, 0);
+          
+          if (this.keys.w) this.moveVector.z = this.speed;
+          if (this.keys.s) this.moveVector.z = -this.speed;
+          if (this.keys.a) this.moveVector.x = this.speed;
+          if (this.keys.d) this.moveVector.x = -this.speed;
+          
+          // 캐릭터의 회전에 따라 이동 방향 조정
+          this.moveVector.applyQuaternion(this.model.object3D.quaternion);
+          
+          // 위치 업데이트
+          this.model.object3D.position.add(this.moveVector);
+        }
+      });
+    </script>
+
+    <!-- 카메라 팔로우 스크립트 수정 -->
+    <script>
+      AFRAME.registerComponent('camera-follow', {
+        schema: {
+          target: { type: 'selector' },
+          distance: { type: 'number', default: 5 },
+          height: { type: 'number', default: 2 }
+        },
+        
+        init: function() {
+          this.cameraRotation = new THREE.Euler();
+        },
+        
+        tick: function() {
+          if (!this.data.target) return;
+          
+          const targetPosition = this.data.target.object3D.position;
+          const targetRotation = this.data.target.object3D.rotation;
+          const characterMovement = this.data.target.components['character-movement'];
+          
+          // 카메라 위치 계산
+          const offset = new THREE.Vector3(
+            0,
+            this.data.height,
+            -this.data.distance
+          );
+          
+          // 캐릭터의 좌우 회전만 따라가기
+          offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), targetRotation.y);
+          
+          // 카메라 위치 업데이트
+          this.el.object3D.position.x = targetPosition.x + offset.x;
+          this.el.object3D.position.y = targetPosition.y + offset.y;
+          this.el.object3D.position.z = targetPosition.z + offset.z;
+          
+          // 시점 회전 적용 (roll 회전 없이)
+          if (characterMovement) {
+            this.el.object3D.rotation.set(
+              characterMovement.rotationX,
+              targetRotation.y + Math.PI,
+              0  // roll(z축 회전)을 0으로 고정
+            );
+          }
+        }
+      });
+    </script>
+</head>
+<body>
+    <a-scene loading-screen="dotsColor: white; backgroundColor: #000000">
+
+
+        <!-- 조명 -->
+        <a-light type="ambient" color="#ffffff" intensity="0.5"></a-light>
+        <a-light type="directional" color="#ffffff" intensity="1" position="-1 2 1"></a-light>
+
+        <!-- 환경 설정 -->
+        <a-entity environment="preset: default; groundColor: #555;"></a-entity>
+
+            <!-- 3D 모델 -->
+            <a-entity
+                id="character"
+                gltf-model="./models/mannequin/scene.gltf"
+                position="0 0 0"
+                scale="0.8 0.8 0.8"
+                rotation="0 0 0"
+                character-movement>
+            </a-entity>
+        </a-entity>
+
+        <!-- 3인칭 카메라 업데이트 -->
+        <a-entity 
+            id="camera" 
+            camera 
+            position="0 2 3"
+            camera-follow="target: #character; distance: 3; height: 1.5">
+            <a-cursor color="#FAFAFA"></a-cursor>
+        </a-entity>
+    </a-scene>
+</body>
+</html>
