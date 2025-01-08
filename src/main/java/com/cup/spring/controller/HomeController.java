@@ -40,6 +40,10 @@ public class HomeController {
 		return "index"; // src/main/resources/templates/index.html
 	}
 
+	@GetMapping({ "/neworld" })
+	public String aframe_world( Model model) {
+		return "newworld";
+	}
 	
 
 }
