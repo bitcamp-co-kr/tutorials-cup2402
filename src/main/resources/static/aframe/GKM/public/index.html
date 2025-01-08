@@ -26,12 +26,20 @@
           this.mouseSensitivity = 0.002;
           this.rotationX = 0; // 상하 회전을 위한 변수 추가
           
-          // 키보드 상태 추적
+          // 점프 관련 변수 추가
+          this.isJumping = false;
+          this.jumpVelocity = 0;
+          this.jumpSpeed = 0.15;
+          this.gravity = 0.006;
+          this.groundLevel = 0;
+          
+          // 키보드 상태 추적에 스페이스바 추가
           this.keys = {
             w: false,
             s: false,
             a: false,
-            d: false
+            d: false,
+            ' ': false  // 스페이스 바
           };
           
           // 키보드 이벤트
@@ -74,22 +82,94 @@
               this.previousMouseY = e.clientY;
             }
           });
+          
+          // 애니메이션 상태 추가
+          this.currentAnimation = 'Idle0';
+          this.model.addEventListener('model-loaded', () => {
+            this.mixer = new THREE.AnimationMixer(this.model.object3D);
+            this.animations = this.model.getObject3D('mesh').animations;
+            this.actions = {};
+            
+            // 모든 애니메이션 액션 생성
+            this.animations.forEach(animation => {
+              this.actions[animation.name] = this.mixer.clipAction(animation);
+            });
+            
+            // 초기 Idle 애니메이션 시작
+            this.playAnimation('Idle0');
+          });
         },
         
-        tick: function() {
+        playAnimation: function(newAnim) {
+          if (this.currentAnimation === newAnim) return;
+          
+          // 이전 애니메이�� 페이드아웃
+          if (this.actions[this.currentAnimation]) {
+            this.actions[this.currentAnimation].fadeOut(0.2);
+          }
+          
+          // 새 애니메이� 페이드인
+          if (this.actions[newAnim]) {
+            this.actions[newAnim].reset().fadeIn(0.2).play();
+            this.currentAnimation = newAnim;
+          }
+        },
+        
+        tick: function(time, deltaTime) {
           // 이동 방향 계산
           this.moveVector.set(0, 0, 0);
           
+          // 전진/후진
           if (this.keys.w) this.moveVector.z = this.speed;
           if (this.keys.s) this.moveVector.z = -this.speed;
-          if (this.keys.a) this.moveVector.x = this.speed;
-          if (this.keys.d) this.moveVector.x = -this.speed;
           
-          // 캐릭터의 회전에 따라 이동 방향 조정
+          // A/D 키로 회전
+          if (this.keys.a) {
+            this.model.object3D.rotation.y += 0.03;
+          }
+          if (this.keys.d) {
+            this.model.object3D.rotation.y -= 0.03;
+          }
+          
+          // 점프 처리
+          if (this.keys[' '] && !this.isJumping) {
+            this.isJumping = true;
+            this.jumpVelocity = this.jumpSpeed;
+          }
+          
+          // 점프 물리 계산
+          if (this.isJumping) {
+            this.model.object3D.position.y += this.jumpVelocity;
+            this.jumpVelocity -= this.gravity;
+            
+            // 바닥에 닿았는지 확인
+            if (this.model.object3D.position.y <= this.groundLevel) {
+              this.model.object3D.position.y = this.groundLevel;
+              this.isJumping = false;
+              this.jumpVelocity = 0;
+            }
+          }
+          
+          // 캐릭터의 회현재 회전에 따라 이동 방향 조정
           this.moveVector.applyQuaternion(this.model.object3D.quaternion);
           
-          // 위치 업데이트
-          this.model.object3D.position.add(this.moveVector);
+          // 수평 이동만 사용 (y값은 점프에서 처리)
+          this.model.object3D.position.x += this.moveVector.x;
+          this.model.object3D.position.z += this.moveVector.z;
+          
+          // 애니메이션 �태 �데이트
+          if (this.mixer) {
+            this.mixer.update(deltaTime / 1000);
+            
+            // 애니메이션 �태 �정
+            if (this.isJumping) {
+              this.playAnimation('Jumping0');
+            } else if (this.keys.w || this.keys.s) {
+              this.playAnimation('Walking0');
+            } else {
+              this.playAnimation('Idle0');
+            }
+          }
         }
       });
     </script>
@@ -143,24 +223,42 @@
 </head>
 <body>
     <a-scene loading-screen="dotsColor: white; backgroundColor: #000000">
-
+        <!-- 창고 모델 추가 -->
+        <a-entity
+            id="warehouse"
+            gltf-model="./models/warehouse/scene.gltf"
+            position="0 -2 0"
+            scale="4 4 4"
+            rotation="0 0 0">
+        </a-entity>
 
         <!-- 조명 -->
         <a-light type="ambient" color="#ffffff" intensity="0.5"></a-light>
         <a-light type="directional" color="#ffffff" intensity="1" position="-1 2 1"></a-light>
 
-        <!-- 환경 설정 -->
-        <a-entity environment="preset: default; groundColor: #555;"></a-entity>
+        <!-- 바닥 추가 -->
+        <a-plane 
+            position="0 -2 0" 
+            rotation="-90 0 0" 
+            width="100" 
+            height="100" 
+            material="
+                color: #7BC8A4;
+                wireframe: true;
+                wireframeLinewidth: 2;
+                src: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAEQSURBVHic7ZjBDYQwDARPKYSH9N9NekgJz4MQsuPY3mSllXYeYGac9badX+f9+Nw93+f9+AIwxoAxBowxYIwBYwwYY8AYA8YYMMaAMQaMMWCMAWMMGGPAGAPGGDDGgDEGjDFgzO0Abre0Y8f+HTk/eu2j86s4/n0PYAVgjAFjDBhjwBgDxhgwxoAxBowxYIwBYwwYY8AYA8YYMMaAMQaMMWCMAWMMGGPAmNsBsP8JzHZ+FQaMMWCMAWMMGGPAGAPGGDDGgDEGjDFgjAFjDBhjwBgDxhgw5guNjCTwPZGG1gAAAABJRU5ErkJggg==);
+                repeat: 100 100"
+            shadow>
+        </a-plane>
 
-            <!-- 3D 모델 -->
-            <a-entity
-                id="character"
-                gltf-model="./models/mannequin/scene.gltf"
-                position="0 0 0"
-                scale="0.8 0.8 0.8"
-                rotation="0 0 0"
-                character-movement>
-            </a-entity>
+        <!-- 3D 모델 -->
+        <a-entity
+            id="character"
+            gltf-model="./models/player/player.gltf"
+            position="0 0 0"
+            scale="0.01 0.01 0.01"
+            rotation="0 0 0"
+            character-movement>
         </a-entity>
 
         <!-- 3인칭 카메라 업데이트 -->
