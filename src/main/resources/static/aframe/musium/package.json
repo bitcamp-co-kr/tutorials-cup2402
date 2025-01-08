@@ -1,0 +1,22 @@
+{
+  "name": "Museum-project",
+  "description": "3D virtual Museum built using aframe",
+  "version": "1.0.0",
+  "license": "MIT",
+  "devDependencies": {
+    "grunt": "^1.0.1",
+    "grunt-script-link-tags": "^1.0.2"
+  },
+  "keywords": [
+    "aframe",
+    "aframe-example",
+    "aframe-scene",
+    "aframe-boilerplate"
+  ],
+  "author": "Ismail QOUIQA",
+  "homepage": "https://github.com/isqo",
+  "dependencies": {
+    "aframe-extras": "^1.14.0",
+    "jquery": "~3.0.0"
+  }
+}

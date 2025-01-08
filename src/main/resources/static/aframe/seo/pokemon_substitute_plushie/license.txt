@@ -1,8 +1,0 @@
-Model Information:
-* title:	Pokemon Substitute Plushie
-* source:	https://sketchfab.com/3d-models/pokemon-substitute-plushie-0967dc41e22a4bb199adced0f2d77f42
-* author:	Goitya (https://sketchfab.com/Goitya)
-
-Model License:
-* license type:	SKETCHFAB Standard (https://sketchfab.com/licenses)
-* requirements:	Under basic restrictions, use worldwide, on all types of media, commercially or not, and in all types of derivative works

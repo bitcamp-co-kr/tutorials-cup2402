@@ -1,0 +1,29 @@
+@use '../../../style/variables.scss';
+
+.wrapper {
+  position: absolute;
+  transform: translateX(-50%);
+  bottom: 10%;
+  left: 50%;
+  border: unset;
+  height: auto; // Changed from fixed height
+  border-radius: 16px;
+  align-items: center;
+  display: flex;
+  column-gap: 8px;
+  padding: 8px 12px;
+  transition: 0.2s ease-in-out;
+
+  button {
+    border-radius: 50%;
+    width: 56px; // Increased from 43px
+    height: 56px; // Increased from 43px
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    &.active {
+      border: 1px solid variables.$white;
+    }
+  }
+}
