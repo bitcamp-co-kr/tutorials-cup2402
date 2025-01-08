@@ -1,0 +1,11 @@
+Model Information:
+* title:	Full Gameready City Buildings
+* source:	https://sketchfab.com/3d-models/full-gameready-city-buildings-0545317292c44490af5408cb58633121
+* author:	abhayexe (https://sketchfab.com/abhayexe)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Full Gameready City Buildings" (https://sketchfab.com/3d-models/full-gameready-city-buildings-0545317292c44490af5408cb58633121) by abhayexe (https://sketchfab.com/abhayexe) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

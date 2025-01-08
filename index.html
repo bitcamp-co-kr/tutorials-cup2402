@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+
+<html>
+
+  <head>
+
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+
+    <style>
+
+      #timer {
+
+        position: fixed;
+
+        top: 20px;
+
+        left: 50%;
+
+        transform: translateX(-50%);
+
+        color: #FF0000;
+
+        font-size: 24px;
+
+        font-weight: bold;
+
+        z-index: 999;
+
+      }
+
+    </style>
+
+    <script>
+
+      // 게임 상태 관리
+
+      let isGameOver = false;
+
+      let gameSpeed = 0.3;     // 초기 속도
+
+      let maxWalls = 3;        // 초기 최대 벽 개수
+
+      let spawnInterval = 2000; // 초기 생성 간격 (2초)
+
+
+
+
+
+      // 타이머 관련 변수 추가
+
+      let startTime;
+
+      let timerInterval;
+
+      let finalScore = 0;
+
+      let isOutOfBounds = false;
+
+      let pausedTime = 0;  // 일시 정지된 시간
+
+      let outTime = null;  // 바깥으로 나간 시간
+
+
+
+
+
+      // 타이머 시작 함수
+
+      function startTimer() {
+
+        startTime = new Date();
+
+        
+
+        // 타이머 UI 생성
+
+        const timerDiv = document.createElement('div');
+
+        timerDiv.id = 'timer';
+
+        timerDiv.style.position = 'fixed';
+
+        timerDiv.style.top = '20px';
+
+        timerDiv.style.left = '50%';
+
+        timerDiv.style.transform = 'translateX(-50%)';
+
+        timerDiv.style.color = 'white';
+
+        timerDiv.style.fontSize = '24px';
+
+        timerDiv.style.fontWeight = 'bold';
+
+        timerDiv.style.textShadow = '2px 2px 2px black';
+
+        document.body.appendChild(timerDiv);
+
+        
+
+        // 타이머 시작
+
+        timerInterval = setInterval(updateTimer, 1000);
+
+      }
+
+
+
+      function updateTimer() {
+
+        if (isGameOver) return;
+
+        
+
+        const currentTime = new Date();
+
+        if (isOutOfBounds) {
+
+          // 바깥에 있는 동안은 시간을 업데이트하지 않음
+
+          return;
+
+        }
+
+        
+
+        // 실제 경과 시간 계산 (바깥에 있던 시간 제외)
+
+        const timeDiff = (currentTime - startTime - pausedTime) / 1000;
+
+        finalScore = Math.floor(timeDiff);
+
+        document.querySelector('#timer').textContent = `생존 시간: ${finalScore}초`;
+
+      }
+
+
+
+      // 게임 시작 시 타이머 시작
+
+      window.addEventListener('load', startTimer);
+
+
+
+      // car-mover 컴포넌트 수정
+
+      AFRAME.registerComponent('car-mover', {
+
+        init: function() {
+
+          this.moveSpeed = 0.5;
+
+          this.cars = [];
+
+          this.startTime = new Date();
+
+          this.lastCarCount = 1;
+
+          this.maxCars = 5;
+
+          
+
+          // 첫 번째 차량 추가
+
+          this.addCar();
+
+          
+
+          this.tick = AFRAME.utils.throttleTick(this.tick.bind(this), 16);
+
+        },
+
+
+
+        addCar: function() {
+
+          const car = document.createElement('a-entity');
+
+          
+
+          // 30% 확률로 버스 생성
+
+          const isBus = Math.random() < 0.3;
+
+          
+
+          // 디버그용 로그
+
+          console.log('Vehicle type:', isBus ? 'Bus' : 'Car');
+
+          
+
+          if (isBus) {
+
+            car.setAttribute('gltf-model', '#bus-model');
+
+            car.setAttribute('scale', '40 40 40');
+
+            car.setAttribute('position', `${Math.random() * 40 - 20} 1 ${-50 - (Math.random() * 30)}`);
+
+            car.setAttribute('rotation', '0 270 0');
+
+            car.setAttribute('class', 'bus');
+
+          } else {
+
+            car.setAttribute('gltf-model', '#car-model');
+
+            car.setAttribute('scale', '15 15 15');
+
+            car.setAttribute('position', `${Math.random() * 40 - 20} 3 ${-50 - (Math.random() * 30)}`);
+
+            car.setAttribute('rotation', '0 0 0');
+
+            car.setAttribute('class', 'car');
+
+          }
+
+          
+
+          this.el.sceneEl.appendChild(car);
+
+          this.cars.push({
+
+            element: car,
+
+            position: car.object3D.position,
+
+            isBus: isBus
+
+          });
+
+        },
+
+
+
+        updateSpeed: function() {
+
+          const timePassed = (new Date() - this.startTime) / 1000;
+
+          const level = Math.floor(timePassed / 10);  // 10초마다 레벨 증가
+
+          this.moveSpeed = 0.5 + (level * 0.2);      // 레벨당 속도 0.2씩 증가
+
+          
+
+          // 자동차 추가 체크 (최대 5대까지만)
+
+          if (level + 1 > this.lastCarCount && this.cars.length < this.maxCars) {
+
+            this.addCar();
+
+            this.lastCarCount = level + 1;
+
+          }
+
+          
+
+          if (this.moveSpeed > 2.0) this.moveSpeed = 2.0;
+
+        },
+
+
+
+        tick: function(time, timeDelta) {
+
+          if (isGameOver) return;
+
+          
+
+          // 속도 업데이트
+
+          this.updateSpeed();
+
+          
+
+          // 모든 자동차 이동
+
+          this.cars.forEach(car => {
+
+            car.position.z += this.moveSpeed;
+
+            
+
+            // 자동차가 일정 거리를 지나면 다시 뒤로 이동
+
+            if (car.position.z > 20) {
+
+              car.position.z = -50;
+
+              // 다른 자동차와 겹치지 않는 위치 찾기
+
+              let newX;
+
+              let overlap;
+
+              do {
+
+                overlap = false;
+
+                newX = Math.random() * 40 - 20;
+
+                for (let otherCar of this.cars) {
+
+                  if (otherCar !== car && 
+
+                      Math.abs(otherCar.position.x - newX) < 10 && 
+
+                      otherCar.position.z < -30) {
+
+                    overlap = true;
+
+                    break;
+
+                  }
+
+                }
+
+              } while (overlap);
+
+              car.position.x = newX;
+
+            }
+
+          });
+
+        }
+
+      });
+
+
+
+      // 벽 이동 컴포넌트
+
+      AFRAME.registerComponent('wall-mover', {
+
+        init: function() {
+
+          this.speed = gameSpeed;  // 생성 시점의 게임 속도 저장
+
+        },
+
+
+
+        tick: function() {
+
+          if (isGameOver) return;
+
+          
+
+          const position = this.el.getAttribute('position');
+
+          position.z += this.speed;  // 저장된 속도로 이동
+
+          
+
+          if (position.z > 10) {
+
+            this.el.parentNode.removeChild(this.el);
+
+            return;
+
+          }
+
+          
+
+          this.el.setAttribute('position', position);
+
+        }
+
+      });
+
+
+
+      // 충돌 감지 컴포넌트
+
+      AFRAME.registerComponent('collision-detector', {
+
+        init: function() {
+
+          // 충돌 감지를 10fps로 제한 (성능 최적화)
+
+          this.tick = AFRAME.utils.throttleTick(this.tick.bind(this), 100);
+
+        },
+
+
+
+        tick: function() {
+
+          if (isGameOver) return;
+
+          
+
+          const playerPos = this.el.object3D.position;
+          
+          // 모든 차량의 충돌 체크
+          const vehicles = document.querySelectorAll('.car, .bus');
+          vehicles.forEach(vehicle => {
+            const vehiclePos = vehicle.object3D.position;
+            const dx = Math.abs(playerPos.x - vehiclePos.x);
+            const dy = Math.abs(playerPos.y - vehiclePos.y);
+            const dz = Math.abs(playerPos.z - vehiclePos.z);
+            
+            const isBus = vehicle.classList.contains('bus');
+            const width = isBus ? 4 : 4;
+            const height = isBus ? 8 : 4;
+            const length = isBus ? 19 : 10;
+            
+            if (dx < width && dy < height && dz < length) {
+              this.gameOver(isBus ? 'bus' : 'car');
+            }
+          });
+        },
+
+
+
+        gameOver: function(collisionType) {
+
+          if (isGameOver) return;
+
+          isGameOver = true;
+
+          clearInterval(timerInterval);
+
+          
+
+          const gameOverUI = document.createElement('div');
+
+          gameOverUI.innerHTML = `
+
+            <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+
+                        background: rgba(0, 0, 0, 0.8); color: white; padding: 20px; text-align: center;
+
+                        border-radius: 10px; z-index: 999;">
+
+              <h2 style="color: #FF0000; font-size: 32px;">게임 오버!</h2>
+
+              <p style="font-size: 24px; margin: 15px 0;">
+
+                ${collisionType === 'bus' ? '버스와 충돌!' : '람보르기니와 충돌!'}
+
+              </p>
+
+              <p style="font-size: 24px; margin: 15px 0;">최종 생존 시간: ${finalScore}초</p>
+
+              <button onclick="location.reload()" 
+
+                      style="padding: 15px 30px; background: #FF0000; color: white;
+
+                             border: none; border-radius: 5px; cursor: pointer;
+
+                             font-size: 18px; margin-top: 10px;">
+
+                다시 시작
+
+              </button>
+
+            </div>
+
+          `;
+
+          document.body.appendChild(gameOverUI);
+
+
+
+          // 캐릭터 애니메이션 정지
+
+          const character = document.querySelector('#character');
+
+          if (character && character.components['animation-controller']) {
+
+            character.components['animation-controller'].playAnimation('StandardIdle0');
+
+          }
+
+        }
+
+      });
+
+
+
+      // 애니메이션 컨트롤 컴포넌트
+
+      AFRAME.registerComponent('animation-controller', {
+
+        init: function() {
+
+          this.currentAnim = 'StandardIdle0';
+
+          
+
+          this.el.addEventListener('model-loaded', () => {
+
+            // 모델 로드 시 기본 애니메이션 설정
+
+            this.el.setAttribute('animation-mixer', {
+
+              clip: 'StandardIdle0',
+
+              loop: 'repeat'
+
+            });
+
+          });
+
+        },
+
+
+
+        playAnimation: function(animName) {
+
+          if (this.currentAnim === animName) return;
+
+          
+
+          this.el.setAttribute('animation-mixer', {
+
+            clip: animName,
+
+            loop: 'repeat',
+
+            crossFadeDuration: 0.2
+
+          });
+
+          
+
+          this.currentAnim = animName;
+
+        }
+
+      });
+
+
+
+      // pokemon-controls 컴포넌트 수정
+
+      AFRAME.registerComponent('character-controls', {
+
+        init: function() {
+
+          this.moveSpeed = 0.54;  // 0.45 * 1.2
+
+          this.currentVelocity = { x: 0, y: 0, z: 0 };
+
+          this.acceleration = 0.045;
+
+          this.deceleration = 0.8;
+
+          this.maxSpeed = 0.675;
+
+          this.jumpForce = 1.0;
+
+          this.gravity = 1.7;
+
+          this.canJump = true;
+
+          this.keys = { w: false, a: false, s: false, d: false };
+
+          this.animController = this.el.components['animation-controller'];
+
+
+
+          document.addEventListener('keydown', (e) => {
+
+            if (e.code === 'Space' && this.canJump) {
+
+              this.currentVelocity.y = this.jumpForce;
+
+              this.canJump = false;
+
+            } else if (this.keys.hasOwnProperty(e.key.toLowerCase())) {
+
+              this.keys[e.key.toLowerCase()] = true;
+
+            }
+
+          });
+
+
+
+          document.addEventListener('keyup', (e) => {
+
+            if (this.keys.hasOwnProperty(e.key.toLowerCase())) {
+
+              this.keys[e.key.toLowerCase()] = false;
+
+            }
+
+          });
+
+        },
+
+
+
+        tick: function(time, timeDelta) {
+
+          if (isGameOver) return;
+
+          
+
+          // 경계 체크
+
+          const position = this.el.object3D.position;
+
+          const isInBounds = position.x >= -20 && position.x <= 20 && 
+                            position.z >= -50 && position.z <= 20;
+          
+          if (!isInBounds && !isOutOfBounds) {
+
+            // 경계선 바깥으로 나갔을 때
+
+            isOutOfBounds = true;
+
+            outTime = new Date();  // 나간 시간 기록
+
+            
+
+            // 경고 메시지 표시
+
+            const warningMsg = document.createElement('div');
+
+            warningMsg.id = 'warning-message';
+
+            warningMsg.innerHTML = `
+
+              <div style="position: fixed; 
+
+                          left: 50%; 
+
+                          transform: translateX(-50%);
+
+                          top: 100px;
+
+                          color: red;
+
+                          font-size: 24px;
+
+                          font-weight: bold;
+
+                          text-align: center;
+
+                          background: rgba(0, 0, 0, 0.7);
+
+                          padding: 10px 20px;
+
+                          border-radius: 5px;
+
+                          z-index: 999;">
+
+                선 바깥에서는 점수가 인정되지 않습니다!
+
+              </div>
+
+            `;
+
+            document.body.appendChild(warningMsg);
+
+          } else if (isInBounds && isOutOfBounds) {
+
+            // 다시 경계선 안�로 들어왔을 때
+
+            isOutOfBounds = false;
+
+            // 바깥에 있던 시간을 pausedTime에 추가
+
+            pausedTime += new Date() - outTime;
+
+            outTime = null;
+
+            
+
+            const warningMsg = document.querySelector('#warning-message');
+
+            if (warningMsg) {
+
+              warningMsg.remove();
+
+            }
+
+          }
+
+
+
+          const rotation = this.el.object3D.rotation;
+
+          const deltaSeconds = timeDelta / 1000;
+
+
+
+          let directionX = 0;
+
+          let directionZ = 0;
+
+
+
+          if (this.keys.w) directionZ -= 1;
+
+          if (this.keys.s) directionZ += 1;
+
+          if (this.keys.a) directionX -= 1;
+
+          if (this.keys.d) directionX += 1;
+
+
+
+          if (directionX !== 0 && directionZ !== 0) {
+
+            const length = Math.sqrt(directionX * directionX + directionZ * directionZ);
+
+            directionX /= length;
+
+            directionZ /= length;
+
+          }
+
+
+
+          this.currentVelocity.x += directionX * this.acceleration;
+
+          this.currentVelocity.z += directionZ * this.acceleration;
+
+
+
+          this.currentVelocity.x = Math.max(Math.min(this.currentVelocity.x, this.maxSpeed), -this.maxSpeed);
+
+          this.currentVelocity.z = Math.max(Math.min(this.currentVelocity.z, this.maxSpeed), -this.maxSpeed);
+
+
+
+          position.x += this.currentVelocity.x;
+
+          position.z += this.currentVelocity.z;
+
+
+
+          if (this.currentVelocity.x !== 0 || this.currentVelocity.z !== 0) {
+
+            const angle = Math.atan2(this.currentVelocity.x, this.currentVelocity.z);
+
+            rotation.y = angle;
+
+          }
+
+
+
+          this.currentVelocity.y -= this.gravity * deltaSeconds;
+
+          position.y += this.currentVelocity.y;
+
+
+
+          if (position.y < 1.5) {
+
+            position.y = 1.5;
+
+            this.currentVelocity.y = 0;
+
+            this.canJump = true;
+
+          }
+
+
+
+          this.currentVelocity.x *= this.deceleration;
+
+          this.currentVelocity.z *= this.deceleration;
+
+
+
+          if (Math.abs(this.currentVelocity.x) < 0.001) this.currentVelocity.x = 0;
+
+          if (Math.abs(this.currentVelocity.z) < 0.001) this.currentVelocity.z = 0;
+
+
+
+          const camera = document.querySelector('#camera');
+
+          if (camera) {
+
+            camera.object3D.position.x = position.x;
+
+            camera.object3D.position.y = position.y + 3;
+
+            camera.object3D.position.z = position.z + 8;
+
+          }
+
+
+
+          // 애니메이션 상태 업데이트
+
+          if (this.currentVelocity.y > 0.01) {
+
+            this.animController.playAnimation('Jumping0');
+
+          } else if (Math.abs(this.currentVelocity.x) > 0.005 || Math.abs(this.currentVelocity.z) > 0.005) {
+
+            this.animController.playAnimation('StandardRun0');
+
+          } else {
+
+            this.animController.playAnimation('StandardIdle0');
+
+          }
+
+        }
+
+      });
+
+
+
+      // 모델 로드 에러 체크
+
+      document.querySelector('a-scene').addEventListener('model-error', function(e) {
+
+        console.error('Model load error:', e.detail.src);
+
+      });
+
+
+
+      // 모모델 로드 성공 체크
+
+      document.querySelector('a-scene').addEventListener('model-loaded', function(e) {
+
+        console.log('Model loaded successfully:', e.detail.model);
+
+      });
+
+
+
+      // 에셋 로딩 상�� 체크
+
+      const scene = document.querySelector('a-scene');
+
+      const assets = document.querySelector('a-assets');
+
+      
+
+      // 로딩 UI 생성
+
+      const loadingUI = document.createElement('div');
+
+      loadingUI.style.position = 'fixed';
+
+      loadingUI.style.top = '50%';
+
+      loadingUI.style.left = '50%';
+
+      loadingUI.style.transform = 'translate(-50%, -50%)';
+
+      loadingUI.style.background = 'rgba(0, 0, 0, 0.8)';
+
+      loadingUI.style.color = 'white';
+
+      loadingUI.style.padding = '20px';
+
+      loadingUI.style.borderRadius = '10px';
+
+      loadingUI.style.textAlign = 'center';
+
+      loadingUI.style.zIndex = '9999';
+
+      loadingUI.innerHTML = '게임 로딩 중...';
+
+      document.body.appendChild(loadingUI);
+
+
+
+      // 에셋 로딩 완료 처리
+
+      assets.addEventListener('loaded', function () {
+
+        console.log('모든 에셋 로딩 완료');
+
+        loadingUI.remove();
+
+        startGame();
+
+      });
+
+
+
+      // 에셋 로딩 에� 처리
+
+      assets.addEventListener('error', function (e) {
+
+        console.error('에셋 로딩 �패:', e);
+
+        loadingUI.innerHTML = `
+
+          <div>
+
+            <h2 style="color: #FF0000;">로딩 실패</h2>
+
+            <p>게임 리소스를 불러오는데 실패했습니다.</p>
+
+            <button onclick="location.reload()" 
+
+                    style="padding: 10px 20px; background: #FF0000; 
+
+                           color: white; border: none; border-radius: 5px; 
+
+                           cursor: pointer; margin-top: 10px;">
+
+              다시 시도
+
+            </button>
+
+          </div>
+
+        `;
+
+      });
+
+
+
+      // 타임아웃 설정 (30초)
+
+      setTimeout(function() {
+
+        if (!scene.hasLoaded) {
+
+          console.error('로딩 타임�웃');
+
+          loadingUI.innerHTML = `
+
+            <div>
+
+              <h2 style="color: #FF0000;">로딩 시간 초과</h2>
+
+              <p>네트워크 상태를 확인하고 다시 시도해주세요.</p>
+
+              <button onclick="location.reload()" 
+
+                      style="padding: 10px 20px; background: #FF0000; 
+
+                             color: white; border: none; border-radius: 5px; 
+
+                             cursor: pointer; margin-top: 10px;">
+
+                다시 시도
+
+              </button>
+
+            </div>
+
+          `;
+
+        }
+
+      }, 30000);
+
+
+
+      // 게임 시작 함수
+
+      function startGame() {
+
+        startTimer();
+
+        // 기타 게임 초기화 코드...
+
+      }
+
+    </script>
+
+  </head>
+
+  <body>
+
+    <a-scene>
+
+      <!-- 에셋 로드 -->
+
+      <a-assets>
+
+        <a-asset-item id="city-model" src="./full_gameready_city_buildings/scene.gltf"></a-asset-item>
+
+        <a-asset-item id="character-model" src="./character/character.gltf"></a-asset-item>
+
+        <a-asset-item id="car-model" src="./lamborghini_urus_car_gltf/scene.gltf"></a-asset-item>
+
+        <a-asset-item id="bus-model" src="./toy_bus_gltf/scene.gltf"></a-asset-item>
+
+      </a-assets>
+
+
+
+      <!-- 하늘 -->
+
+      <a-sky color="#B0E2FF" radius="5000"></a-sky>
+
+
+
+      <!-- 도시 모델 -->
+
+      <a-entity id="city"
+
+                gltf-model="#city-model"
+
+                position="0 0 0"
+
+                scale="10 10 10"
+
+                rotation="0 0 0">
+
+      </a-entity>
+
+
+
+      <!-- 새 캐릭터 엔티티 -->
+
+      <a-entity
+
+        id="character"
+
+        gltf-model="#character-model"
+
+        animation-controller
+
+        character-controls
+
+        collision-detector
+
+        position="0 0 0"
+
+        scale="0.02 0.02 0.02"
+
+        material="opacity: 1; transparent: false; metalness: 0.5; roughness: 0.5">
+
+      </a-entity>
+
+
+
+      <!-- 카메라 -->
+
+      <a-entity id="camera" position="0 4 0">
+
+        <a-camera wasd-controls-enabled="false" look-controls-enabled="false" position="0 0 0"></a-camera>
+
+      </a-entity>
+
+
+
+      <!-- 벽 생성기 거하고 차량 이동 컴포넌트 추가 -->
+
+      <a-entity car-mover></a-entity>
+
+
+
+      <!-- 차량 생성/소멸 영역 표시 -->
+      <!-- 생성 라인 (z = -50) -->
+      <a-entity line="start: -20 0 -50; end: 20 0 -50; color: red"></a-entity>
+      
+      <!-- 소멸 라인 (z = 20) -->
+      <a-entity line="start: -20 0 20; end: 20 0 20; color: red"></a-entity>
+      
+      <!-- 좌우 경계선 -->
+      <a-entity line="start: -20 0 -50; end: -20 0 20; color: red"></a-entity>
+      <a-entity line="start: 20 0 -50; end: 20 0 20; color: red"></a-entity>
+
+    </a-scene>
+
+  </body>
+
+</html>
