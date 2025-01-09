@@ -16,7 +16,7 @@
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>    
     <script src="https://unpkg.com/aframe-environment-component@1.3.x/dist/aframe-environment-component.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.5.2/dist/aframe-extras.min.js"></script>
-    <script src="https://unpkg.com/aframe-physics-system@1.6.0/dist/aframe-physics-system.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
     <script src="https://unpkg.com/aframe-event-set-component@3.0.3/dist/aframe-event-set-component.min.js"></script>
 
 
@@ -39,20 +39,20 @@
               init: function () {
                 const avatar = this;
                 avatar.el.setAttribute('obb-collider', ``);
-                avatar.el.setAttribute('animation-mixer', `clip: ${avatar.data.clip_idle}; loop: repeat`);
-                document.addEventListener('keydown', (e) => {
-                    avatar.el.setAttribute('animation-mixer', `clip: ${avatar.data.clip_walking}; loop: repeat`);
-                    if (e.code === 'ArrowUp') {
-                        avatar.el.object3D.rotation.y = 135;
-                    } else if (e.code === 'ArrowDown') {
-                        avatar.el.object3D.rotation.y = 0;
-                    } else if (e.code === 'ArrowLeft') {
-                        avatar.el.object3D.rotation.y = -90;
-                    } else if (e.code === 'ArrowRight') {
-                        avatar.el.object3D.rotation.y = 90;
-                    }
+                document.addEventListener('keydown', function (event) {
+                    console.log(event.code);
+                  if (event.code === 'KeyW') {
+                    avatar.el.object3D.rotation.y = 180*Math.PI/180;
+                  }else if(event.code === 'KeyS'){
+                    avatar.el.object3D.rotation.y = 0*Math.PI/180;
+                  }else if(event.code === 'KeyA'){
+                    avatar.el.object3D.rotation.y = 270*Math.PI/180;
+                  }else if(event.code === 'KeyD'){
+                    avatar.el.object3D.rotation.y = 90*Math.PI/180;
+                  }
+                  avatar.el.setAttribute('animation-mixer', `clip: ${avatar.data.clip_walking}; loop: repeat`);
                 });
-                document.addEventListener('keyup', (e) => {
+                document.addEventListener('keyup', function (event) {
                     avatar.el.setAttribute('animation-mixer', `clip: ${avatar.data.clip_idle}; loop: repeat`);
                 });
                 console.log('avatar component initialized');
@@ -69,6 +69,7 @@
               play: function () {
               }
           });
+
         </script>
 
         
@@ -79,31 +80,40 @@
         <a-asset-item id="boss" src="/aframe/avatars/theboss/theboss.gltf"></a-asset-item>
         <img id="thumbForest" crossOrigin="anonymous" src="https://cdn.aframe.io/link-traversal/thumbs/forest.png">
     </a-assets>
-    <a-camera
-        position="0 1.7 0" rotation="0 180 0">
-        <a-cursor></a-cursor>
-        <a-entity id="player" gltf-model="#boss" 
-            avatar
-            position="-1 -0.7 -2" rotation="0 180 0" scale="0.01 0.01 0.01"
-            light="type: point; intensity: 0.5; distance: 10; decay: 2"
+    <a-entity id="rig" 
+        position="0 0 0">
+        <a-camera id="camera"
+            position="0 1.7 0" rotation="0 0 0"
             >
-        </a-entity>
-    </a-camera>
+            <a-entity id="player" gltf-model="#boss" 
+                avatar
+                position="0 -0.7 -2.4" rotation="0 180 0" scale="0.01 0.01 0.01"
+                light="type: ambient; color: #FFF; intensity: 1.2"
+                >
+            </a-entity>
+        </a-camera>
+    </a-entity>
+        
+    <a-text value="Metaverse-AFrame" position="-2 3 -5" color="blue"></a-text>
 
+    <!-- 서정욱    -->
     <a-link  portal-url 
         href="/aframe/seo/index.html" image="#thumbForest" title="SEO_JU"
         position="-8.0 1.5 -6.0" rotation="0 0 0"></a-link>
+    <!-- 구경모    -->
     <a-link  portal-url 
         href="/aframe/GKM/public/index.html" image="#thumbForest" title="GOO_KM"
         position="-4.0 1.5 -6.0" rotation="0 0 0"></a-link>
+    <!-- 주윤성    아직-->
     <a-link  portal-url
-        href="/aframe/leejeongmin.html" image="#thumbForest" title="LEE_JM"
+        href="/aframe/leejeongmin.html" image="#thumbForest" title="WHO"
         position="0.0 1.5 -6.0" rotation="0 0 0"></a-link>
     <a-link  portal-url
         href="/aframe/shooter/examples/supercraft/index.html" image="#thumbForest" title="SHOOTING"
         position="4.0 1.5 -6.0" rotation="0 0 0"></a-link>
+    <!-- 이정민    -->
     <a-link  portal-url
-        href="/aframe/street/index.html" image="#thumbForest" title="street"
+        href="/aframe/escape-room/index.html" image="#thumbForest" title="EscapeRoom"
         position="8.0 1.5 -6.0" rotation="0 0 0"></a-link>
         
     <a-entity environment="preset: forest; dressingAmount: 500"></a-entity>
@@ -117,8 +127,8 @@
     <script src="/assets/js/templatemo.js"></script>
     <!-- End Script -->
 
-    <script defer>
-
+    
+    <script defer>        
     </script>
 </body>
 

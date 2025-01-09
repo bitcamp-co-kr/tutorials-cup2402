@@ -1,4 +1,5 @@
 
+
 AFRAME.registerComponent('portal-url', {
     init: function () {
         const el = this.el;
