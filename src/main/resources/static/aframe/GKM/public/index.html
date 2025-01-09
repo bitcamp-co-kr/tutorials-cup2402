@@ -13,6 +13,8 @@
     
     <!-- 캐릭터 움직임 컨트롤 스크립트 수정 -->
     <script>
+      let gameStarted = false; // 게임 시작 상태를 추적하는 변수 추가
+      
       AFRAME.registerComponent('character-movement', {
         init: function () {
           this.model = this.el;
@@ -225,7 +227,6 @@
     <script>
       AFRAME.registerComponent('game-manager', {
         init: function() {
-          this.gameTime = 100;
           this.isGameOver = false;
           this.isGameStarted = false;
           this.playerName = '';
@@ -269,9 +270,23 @@
                 게임 시작
               </button>
             </div>
-            <div style="color: white; text-align: center;">
-              <h2>클리어 목록</h2>
-              <ul id="leaderboardList" style="list-style: none; padding: 0;"></ul>
+            <div style="color: white; text-align: center; margin-top: 2em;">
+              <h2>기록</h2>
+              <div style="
+                max-height: 400px;
+                overflow-y: auto;
+                padding: 1em;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 10px;
+                min-width: 300px;
+              ">
+                <ul id="leaderboardList" style="
+                  list-style: none;
+                  padding: 0;
+                  margin: 0;
+                  text-align: left;
+                "></ul>
+              </div>
             </div>
           `;
 
@@ -293,25 +308,24 @@
         },
 
         startGame: function() {
+          gameStarted = true;
           this.isGameStarted = true;
           this.startTime = Date.now();
           document.getElementById('startScreen').style.display = 'none';
           this.timerEl.style.display = 'block';
           this.updateTimer();
+          
+          // 게임 시작 이벤트 발생
+          this.el.emit('gameStarted');
         },
 
         updateTimer: function() {
           if (!this.isGameStarted || this.isGameOver) return;
           
           const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
-          const remaining = Math.max(0, this.gameTime - elapsed);
-          this.timerEl.textContent = `남은 시간: ${remaining}초`;
+          this.timerEl.textContent = `생존 시간: ${elapsed}초`;
           
-          if (remaining <= 0) {
-            this.gameWin();
-          } else {
-            requestAnimationFrame(this.updateTimer.bind(this));
-          }
+          requestAnimationFrame(this.updateTimer.bind(this));
         },
 
         async loadLeaderboard() {
@@ -322,8 +336,22 @@
             const leaderboardList = document.getElementById('leaderboardList');
             leaderboardList.innerHTML = records
               .map((record, index) => `
-                <li style="margin: 0.5em 0;">
-                  ${index + 1}. ${record.player_name} - ${record.clear_time}초
+                <li style="
+                  padding: 0.8em;
+                  margin: 0.5em 0;
+                  background: rgba(255, 255, 255, 0.05);
+                  border-radius: 5px;
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  font-size: 1.1em;
+                ">
+                  <span style="color: ${index < 3 ? '#ffdd44' : 'white'}">
+                    ${index + 1}. ${record.player_name}
+                  </span>
+                  <span style="color: #ff8888">
+                    ${record.survival_time}초
+                  </span>
                 </li>
               `)
               .join('');
@@ -423,34 +451,133 @@
 
         gameLose: function() {
           this.isGameOver = true;
+          const survivalTime = Math.floor((Date.now() - this.startTime) / 1000);
           
-          const loseScreen = document.createElement('div');
-          loseScreen.style.position = 'fixed';
-          loseScreen.style.top = '0';
-          loseScreen.style.left = '0';
-          loseScreen.style.width = '100%';
-          loseScreen.style.height = '100%';
-          loseScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-          loseScreen.style.display = 'flex';
-          loseScreen.style.flexDirection = 'column';
-          loseScreen.style.justifyContent = 'center';
-          loseScreen.style.alignItems = 'center';
-          loseScreen.style.zIndex = '1000';
+          // 기록 저장
+          fetch('/api/records', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              playerName: this.playerName,
+              clearTime: survivalTime
+            })
+          })
+          .then(response => response.json())
+          .then(() => {
+            // 게임 오버 화면 생성
+            const gameOverScreen = document.createElement('div');
+            gameOverScreen.style.position = 'fixed';
+            gameOverScreen.style.top = '0';
+            gameOverScreen.style.left = '0';
+            gameOverScreen.style.width = '100%';
+            gameOverScreen.style.height = '100%';
+            gameOverScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+            gameOverScreen.style.display = 'flex';
+            gameOverScreen.style.flexDirection = 'column';
+            gameOverScreen.style.justifyContent = 'center';
+            gameOverScreen.style.alignItems = 'center';
+            gameOverScreen.style.zIndex = '1000';
+            gameOverScreen.style.fontFamily = 'Arial, sans-serif';
 
-          loseScreen.innerHTML = `
-            <h1 style="color: #F44336; font-size: 3em; margin-bottom: 1em;">게임 오버!</h1>
-            <button id="restartButton" 
-                    style="padding: 0.5em 1em; font-size: 1.2em; background: #F44336; 
-                           color: white; border: none; cursor: pointer;">
-              다시하기
-            </button>
-          `;
+            gameOverScreen.innerHTML = `
+              <div style="background: rgba(0, 0, 0, 0.8); padding: 2em; border-radius: 15px; text-align: center; max-width: 80%;">
+                <h1 style="color: #ff4444; font-size: 3em; margin-bottom: 0.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">게임 오버!</h1>
+                
+                <div style="color: white; font-size: 1.5em; margin-bottom: 1.5em;">
+                  <p>플레이어: ${this.playerName}</p>
+                  <p>생존 시간: ${survivalTime}초</p>
+                </div>
 
-          document.body.appendChild(loseScreen);
+                <button id="restartButton" 
+                        style="padding: 1em 2em; 
+                               font-size: 1.2em; 
+                               background: #ff4444; 
+                               color: white; 
+                               border: none; 
+                               border-radius: 5px;
+                               cursor: pointer;
+                               margin-bottom: 2em;
+                               transition: background 0.3s;">
+                  다시 도전하기
+                </button>
 
-          document.getElementById('restartButton').addEventListener('click', () => {
-            window.location.reload();
+                <div style="color: white; text-align: center; margin-top: 2em;">
+                  <h2 style="color: #ffdd44; margin-bottom: 1em;">최고 기록</h2>
+                  <div style="
+                    max-height: 300px;
+                    overflow-y: auto;
+                    padding: 1em;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 10px;
+                  ">
+                    <ul id="gameOverLeaderboardList" style="
+                      list-style: none;
+                      padding: 0;
+                      margin: 0;
+                      text-align: left;
+                    "></ul>
+                  </div>
+                </div>
+              </div>
+            `;
+
+            document.body.appendChild(gameOverScreen);
+
+            // 다시하기 버튼 호버 효과
+            const restartButton = document.getElementById('restartButton');
+            restartButton.addEventListener('mouseover', () => {
+              restartButton.style.background = '#ff6666';
+            });
+            restartButton.addEventListener('mouseout', () => {
+              restartButton.style.background = '#ff4444';
+            });
+
+            // 다시하기 버튼 클릭 이벤트
+            restartButton.addEventListener('click', () => {
+              window.location.reload();
+            });
+
+            // 게임 오버 화면의 리더보드 업데이트
+            this.loadGameOverLeaderboard();
+          })
+          .catch(error => {
+            console.error('기록 저장 실패:', error);
           });
+        },
+
+        // 게임 오버 화면용 리더보드 로드 함수 추가
+        async loadGameOverLeaderboard() {
+          try {
+            const response = await fetch('/api/records');
+            const records = await response.json();
+            
+            const leaderboardList = document.getElementById('gameOverLeaderboardList');
+            leaderboardList.innerHTML = records
+              .map((record, index) => `
+                <li style="
+                  padding: 0.8em;
+                  margin: 0.5em 0;
+                  background: rgba(255, 255, 255, 0.05);
+                  border-radius: 5px;
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  font-size: 1.1em;
+                ">
+                  <span style="color: ${index < 3 ? '#ffdd44' : 'white'}">
+                    ${index + 1}. ${record.player_name}
+                  </span>
+                  <span style="color: #ff8888">
+                    ${record.survival_time}초
+                  </span>
+                </li>
+              `)
+              .join('');
+          } catch (error) {
+            console.error('리더보드 로드 실패:', error);
+          }
         },
 
         showMessage: function(text, color) {
@@ -465,6 +592,70 @@
           messageEl.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
           messageEl.textContent = text;
           document.body.appendChild(messageEl);
+        },
+
+        gameComplete: function() {
+          if (!this.isGameStarted || this.isGameOver) return;
+          
+          this.isGameOver = true;
+          const endTime = Date.now();
+          const clearTime = Math.floor((endTime - this.startTime) / 1000); // 초 단위로 변환
+          
+          // 게임 클리어 화면 표시
+          document.getElementById('gameOverScreen').style.display = 'flex';
+          document.getElementById('gameOverMessage').textContent = `축하합니다! ${clearTime}초 만에 클리어하셨습니다!`;
+          
+          // 플레이어 이름 입력 받기
+          const playerName = prompt('기록을 저장할 이름을 입력해주세요:');
+          if (playerName) {
+            // 서버로 기록 전송
+            fetch('/api/records', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                playerName: playerName,
+                clearTime: clearTime
+              })
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                alert('기록이 저장되었습니다!');
+                // 상위 기록 표시
+                this.showTopRecords();
+              } else {
+                alert('기록 저장에 실패했습니다.');
+              }
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              alert('기록 저장 중 오류가 발생했습니다.');
+            });
+          }
+        },
+
+        // 상위 기록 표시 함수 추가
+        showTopRecords: function() {
+          fetch('/api/records')
+            .then(response => response.json())
+            .then(records => {
+              let recordsHtml = '<h2>상위 기록</h2><ul>';
+              records.forEach((record, index) => {
+                recordsHtml += `
+                  <li>${index + 1}위: ${record.player_name} - ${record.clear_time}초</li>
+                `;
+              });
+              recordsHtml += '</ul>';
+              
+              document.getElementById('recordsList').innerHTML = recordsHtml;
+              document.getElementById('recordsList').style.display = 'block';
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              alert('기록 조회 중 오류가 발생했습니다.');
+            });
         }
       });
 
@@ -582,12 +773,39 @@
 
       AFRAME.registerComponent('zombie-spawner', {
         init: function() {
-          console.log('Zombie spawner initialized');
           this.spawnTimer = 0;
-          this.spawnInterval = 10000;
-          this.zombieCount = 1;
+          this.difficultyTimer = 0;
+          this.spawnInterval = 10000; // 10초마다 스폰
+          this.zombieSpeed = 0.1;     // 초기 좀비 속도
+          this.initialDelay = 5000;   // 5초 후 첫 스폰
+          this.hasStartedSpawning = false;
           
-          setTimeout(() => this.spawnZombie(), 1000);
+          this.el.sceneEl.addEventListener('gameStarted', () => {
+            setTimeout(() => {
+              this.hasStartedSpawning = true;
+              this.spawnZombie();
+            }, this.initialDelay);
+          });
+        },
+
+        tick: function(time, deltaTime) {
+          if (!this.hasStartedSpawning || this.el.sceneEl.components['game-manager'].isGameOver) {
+            return;
+          }
+
+          this.spawnTimer += deltaTime;
+          this.difficultyTimer += deltaTime;
+          
+          // 매 30초마다 좀비 속도 증가
+          if (this.difficultyTimer >= 30000) {
+            this.difficultyTimer = 0;
+            this.zombieSpeed += 0.02;
+          }
+          
+          if (this.spawnTimer >= this.spawnInterval) {
+            this.spawnTimer = 0;
+            this.spawnZombie();
+          }
         },
 
         spawnZombie: function() {
@@ -609,26 +827,13 @@
           // 속도를 0.1로 설정
           newZombie.setAttribute('zombie-ai', {
             target: '#character',
-            speed: 0.1,
+            speed: this.zombieSpeed,
             detectionRange: 99999,
             attackRange: 1
           });
 
           this.el.sceneEl.appendChild(newZombie);
           console.log('New zombie spawned at:', randomX, 0, randomZ);
-        },
-
-        tick: function(time, deltaTime) {
-          if (this.el.sceneEl.components['game-manager'].isGameOver) {
-            return;
-          }
-
-          this.spawnTimer += deltaTime;
-          
-          if (this.spawnTimer >= this.spawnInterval) {
-            this.spawnTimer = 0;
-            this.spawnZombie();
-          }
         }
       });
     </script>
@@ -688,5 +893,10 @@
         
         <!-- 초기 좀비는 제거 (스포너가 생성할 것이므로) -->
     </a-scene>
+    <div id="gameOverScreen" style="display: none;">
+      <div id="gameOverMessage"></div>
+      <div id="recordsList"></div>
+      <button onclick="location.reload()">다시 시작</button>
+    </div>
 </body>
 </html>
