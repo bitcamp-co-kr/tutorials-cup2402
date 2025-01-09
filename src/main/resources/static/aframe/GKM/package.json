@@ -1,0 +1,14 @@
+{
+  "name": "escape-room-game",
+  "version": "1.0.0",
+  "description": "Zombie Escape Room Game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "express": "^4.17.1",
+    "mongoose": "^6.0.0"
+  }
+}
