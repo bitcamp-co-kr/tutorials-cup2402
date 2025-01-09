@@ -73,15 +73,16 @@
               const deltaX = e.clientX - this.previousMouseX;
               const deltaY = e.clientY - this.previousMouseY;
               
-              // 좌메라 엔티티만 회전
-              const cameraRig = document.querySelector('#camera-rig');
-              cameraRig.object3D.rotation.y -= deltaX * this.mouseSensitivity;
+              // 좌릭터 자체를 회전
+              this.model.object3D.rotation.y -= deltaX * this.mouseSensitivity;
               
               // 상하 시점은 카메라에만 적용
               this.rotationX -= deltaY * this.mouseSensitivity;
               this.rotationX = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.rotationX));
               const camera = document.querySelector('#camera');
-              camera.object3D.rotation.x = this.rotationX;
+              if (camera) {
+                camera.object3D.rotation.x = this.rotationX;
+              }
               
               this.previousMouseX = e.clientX;
               this.previousMouseY = e.clientY;
@@ -130,21 +131,20 @@
           // 이동 방향 계산
           this.moveVector.set(0, 0, 0);
           
-          // 전진/후진
-          if (this.keys.w) this.moveVector.z = this.speed;   // 전진
-          if (this.keys.s) this.moveVector.z = -this.speed;  // 후진
+          // 카메라의 회전값 가져오기
+          const camera = document.querySelector('#camera');
+          const cameraRotation = camera.object3D.rotation.y;
           
-          // 회전 방향 다시 반전
-          if (this.keys.a) {
-            this.model.object3D.rotation.y += this.rotationSpeed * (deltaTime / 1000); // 왼쪽으로 회전
-          }
-          if (this.keys.d) {
-            this.model.object3D.rotation.y -= this.rotationSpeed * (deltaTime / 1000); // 오른쪽으로 회전
-          }
+          // 전진/후진 (부호 변경)
+          if (this.keys.w) this.moveVector.z = -this.speed;   // 전진
+          if (this.keys.s) this.moveVector.z = this.speed;    // 후진
+          // 좌우 이동
+          if (this.keys.a) this.moveVector.x = -this.speed;   // 왼쪽
+          if (this.keys.d) this.moveVector.x = this.speed;    // 오른쪽
           
-          // 캐릭터의 현재 회전을 고려하여 이동 벡터 회전
+          // 카메라 방향을 기준으로 이동 벡터 회전
           const rotationMatrix = new THREE.Matrix4();
-          rotationMatrix.makeRotationY(this.model.object3D.rotation.y);
+          rotationMatrix.makeRotationY(cameraRotation);
           this.moveVector.applyMatrix4(rotationMatrix);
           
           // 점프 처리
@@ -167,6 +167,12 @@
           // 이동 적용
           this.model.object3D.position.x += this.moveVector.x;
           this.model.object3D.position.z += this.moveVector.z;
+          
+          // 이동 방향으로 캐릭터 회전
+          if (Math.abs(this.moveVector.x) > 0.001 || Math.abs(this.moveVector.z) > 0.001) {
+            const angle = Math.atan2(this.moveVector.x, this.moveVector.z);
+            this.model.object3D.rotation.y = angle;
+          }
           
           // 애니메이션 업데이트
           if (this.mixer) {
@@ -199,13 +205,13 @@
         init: function() {
           this.currentRotation = new THREE.Euler();
           this.targetRotation = new THREE.Euler();
-          this.isMouseDown = false;
           this.mouseX = 0;
           this.mouseY = 0;
           this.targetPosition = new THREE.Vector3();
           this.currentPosition = new THREE.Vector3();
+          this.isMouseDown = false;
           
-          // 마우스 이벤트 리스너
+          // 마우스 이벤트 리스너 수정
           document.addEventListener('mousedown', (e) => {
             if (e.button === 2) { // 오른쪽 마우스 버튼
               this.isMouseDown = true;
@@ -215,7 +221,7 @@
           });
           
           document.addEventListener('mouseup', (e) => {
-            if (e.button === 2) {
+            if (e.button === 2) { // 오른쪽 마우스 버튼
               this.isMouseDown = false;
             }
           });
@@ -224,7 +230,7 @@
             if (this.isMouseDown) {
               const deltaX = e.clientX - this.mouseX;
               
-              // deltaX의 부호를 반대로 변경 (- 제거)
+              // deltaX의 부호를 반대로 변경
               this.targetRotation.y -= deltaX * this.data.rotationSpeed;
               
               this.mouseX = e.clientX;
@@ -232,7 +238,7 @@
             }
           });
           
-          // 오른쪽 클릭 메뉴 방지
+          // 오른쪽 클릭 메뉴 방지는 유지
           document.addEventListener('contextmenu', (e) => {
             e.preventDefault();
           });
