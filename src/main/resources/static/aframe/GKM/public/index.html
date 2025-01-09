@@ -227,24 +227,81 @@
         init: function() {
           this.gameTime = 100;
           this.isGameOver = false;
+          this.isGameStarted = false;
+          this.playerName = '';
+          
+          // 시작 화면 생성
+          this.createStartScreen();
+          
+          // 타이머 엘리먼트 생성
           this.timerEl = document.createElement('div');
           this.timerEl.style.position = 'fixed';
           this.timerEl.style.top = '20px';
           this.timerEl.style.left = '20px';
           this.timerEl.style.color = 'white';
           this.timerEl.style.fontSize = '24px';
+          this.timerEl.style.display = 'none';
           document.body.appendChild(this.timerEl);
-          
-          this.startGame();
+        },
+
+        createStartScreen: function() {
+          const startScreen = document.createElement('div');
+          startScreen.id = 'startScreen';
+          startScreen.style.position = 'fixed';
+          startScreen.style.top = '0';
+          startScreen.style.left = '0';
+          startScreen.style.width = '100%';
+          startScreen.style.height = '100%';
+          startScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+          startScreen.style.display = 'flex';
+          startScreen.style.flexDirection = 'column';
+          startScreen.style.justifyContent = 'center';
+          startScreen.style.alignItems = 'center';
+          startScreen.style.zIndex = '1000';
+
+          startScreen.innerHTML = `
+            <h1 style="color: white; font-size: 3em; margin-bottom: 1em;">좀비 탈출 게임</h1>
+            <div style="margin: 2em 0;">
+              <input type="text" id="playerName" placeholder="플레이어 이름을 입력하세요" 
+                     style="padding: 0.5em; font-size: 1.2em; margin-right: 1em;">
+              <button id="startButton" 
+                      style="padding: 0.5em 1em; font-size: 1.2em; background: #4CAF50; color: white; border: none; cursor: pointer;">
+                게임 시작
+              </button>
+            </div>
+            <div style="color: white; text-align: center;">
+              <h2>클리어 목록</h2>
+              <ul id="leaderboardList" style="list-style: none; padding: 0;"></ul>
+            </div>
+          `;
+
+          document.body.appendChild(startScreen);
+
+          // 이벤트 리스너 추가
+          document.getElementById('startButton').addEventListener('click', () => {
+            const name = document.getElementById('playerName').value.trim();
+            if (name) {
+              this.playerName = name;
+              this.startGame();
+            } else {
+              alert('플레이어 이름을 입력해주세요!');
+            }
+          });
+
+          // 초기 리더보드 로드
+          this.loadLeaderboard();
         },
 
         startGame: function() {
+          this.isGameStarted = true;
           this.startTime = Date.now();
+          document.getElementById('startScreen').style.display = 'none';
+          this.timerEl.style.display = 'block';
           this.updateTimer();
         },
 
         updateTimer: function() {
-          if (this.isGameOver) return;
+          if (!this.isGameStarted || this.isGameOver) return;
           
           const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
           const remaining = Math.max(0, this.gameTime - elapsed);
@@ -257,14 +314,143 @@
           }
         },
 
+        async loadLeaderboard() {
+          try {
+            const response = await fetch('/api/records');
+            const records = await response.json();
+            
+            const leaderboardList = document.getElementById('leaderboardList');
+            leaderboardList.innerHTML = records
+              .map((record, index) => `
+                <li style="margin: 0.5em 0;">
+                  ${index + 1}. ${record.player_name} - ${record.clear_time}초
+                </li>
+              `)
+              .join('');
+          } catch (error) {
+            console.error('리더보드 로드 실패:', error);
+          }
+        },
+
         gameWin: function() {
           this.isGameOver = true;
-          this.showMessage('탈출 성공!', '#4CAF50');
+          const clearTime = Math.floor((Date.now() - this.startTime) / 1000);
+          
+          // 기록 저장 먼저 실행
+          fetch('/api/records', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              playerName: this.playerName,
+              clearTime: clearTime
+            })
+          })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('기록 저장 실패');
+            }
+            return response.json();
+          })
+          .then(() => {
+            // 승리 화면 표시
+            const winScreen = document.createElement('div');
+            winScreen.style.position = 'fixed';
+            winScreen.style.top = '0';
+            winScreen.style.left = '0';
+            winScreen.style.width = '100%';
+            winScreen.style.height = '100%';
+            winScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            winScreen.style.display = 'flex';
+            winScreen.style.flexDirection = 'column';
+            winScreen.style.justifyContent = 'center';
+            winScreen.style.alignItems = 'center';
+            winScreen.style.zIndex = '1000';
+
+            winScreen.innerHTML = `
+              <h1 style="color: #4CAF50; font-size: 3em; margin-bottom: 0.5em;">탈출 성공!</h1>
+              <p style="color: white; font-size: 1.5em; margin-bottom: 1em;">
+                플레이어: ${this.playerName}<br>
+                클리어 시간: ${clearTime}초
+              </p>
+              <button id="restartButton" 
+                      style="padding: 0.5em 1em; font-size: 1.2em; background: #4CAF50; 
+                             color: white; border: none; cursor: pointer; margin-bottom: 2em;">
+                다시하기
+              </button>
+              <div style="color: white; text-align: center;">
+                <h2>클리어 목록</h2>
+                <ul id="winLeaderboardList" style="list-style: none; padding: 0; max-height: 300px; overflow-y: auto;"></ul>
+              </div>
+            `;
+
+            document.body.appendChild(winScreen);
+
+            // 다시하기 버튼 이벤트 리스너
+            document.getElementById('restartButton').addEventListener('click', () => {
+              window.location.reload();
+            });
+
+            // 리더보드 업데이트
+            this.loadWinLeaderboard();
+          })
+          .catch(error => {
+            console.error('기록 저장 실패:', error);
+            // 에러가 발생해도 승리 화면은 표시
+            this.showWinScreen(clearTime);
+          });
+        },
+
+        // 승리 화면용 리더보드 로드 함수
+        async loadWinLeaderboard() {
+          try {
+            const response = await fetch('/api/records');
+            const records = await response.json();
+            
+            const leaderboardList = document.getElementById('winLeaderboardList');
+            leaderboardList.innerHTML = records
+              .map((record, index) => `
+                <li style="margin: 0.5em 0; font-size: 1.2em;">
+                  ${index + 1}. ${record.player_name} - ${record.clear_time}초
+                </li>
+              `)
+              .join('');
+          } catch (error) {
+            console.error('리더보드 로드 실패:', error);
+          }
         },
 
         gameLose: function() {
           this.isGameOver = true;
-          this.showMessage('게임 오버!', '#F44336');
+          
+          const loseScreen = document.createElement('div');
+          loseScreen.style.position = 'fixed';
+          loseScreen.style.top = '0';
+          loseScreen.style.left = '0';
+          loseScreen.style.width = '100%';
+          loseScreen.style.height = '100%';
+          loseScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+          loseScreen.style.display = 'flex';
+          loseScreen.style.flexDirection = 'column';
+          loseScreen.style.justifyContent = 'center';
+          loseScreen.style.alignItems = 'center';
+          loseScreen.style.zIndex = '1000';
+
+          loseScreen.innerHTML = `
+            <h1 style="color: #F44336; font-size: 3em; margin-bottom: 1em;">게임 오버!</h1>
+            <button id="restartButton" 
+                    style="padding: 0.5em 1em; font-size: 1.2em; background: #F44336; 
+                           color: white; border: none; cursor: pointer;">
+              다시하기
+            </button>
+          `;
+
+          document.body.appendChild(loseScreen);
+
+          document.getElementById('restartButton').addEventListener('click', () => {
+            window.location.reload();
+          });
         },
 
         showMessage: function(text, color) {
