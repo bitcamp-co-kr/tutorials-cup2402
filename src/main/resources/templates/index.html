@@ -28,6 +28,7 @@
             but HTML will ignore the capitalization of attribute names. 
             Change the name to be lowercase: `usercomponent`
         -->
+        <script src="/aframe/components/commons.js"></script>
         
         <script>        
            AFRAME.registerComponent('avatar', {
@@ -68,22 +69,6 @@
               play: function () {
               }
           });
-          AFRAME.registerComponent('portal-url', {
-              init: function () {
-                  const el = this.el;
-                  el.addEventListener('obbcollisionstarted', function (e) {
-                      console.log('Player collided start ');
-                      if (el.hasAttribute('href')) {
-                          window.location.href = el.getAttribute('href');
-                      }
-                  });
-                  el.addEventListener('obbcollisionended', function (e) {
-                      console.log('Player collided end ');
-                  });
-                  console.log('collider component initialized : ');
-              }
-          });
-
         </script>
 
         
@@ -94,32 +79,33 @@
         <a-asset-item id="boss" src="/aframe/avatars/theboss/theboss.gltf"></a-asset-item>
         <img id="thumbForest" crossOrigin="anonymous" src="https://cdn.aframe.io/link-traversal/thumbs/forest.png">
     </a-assets>
-
-    <a-link  obb-collider portal-url 
-        href="/aframe/seo/index.html" image="#thumbForest" title="SEO_JU"
-        position="-8.0 1.5 -6.0" rotation="0 0 0"></a-link>
-    <a-link  obb-collider portal-url 
-        href="/aframe/GKM/public/index.html" image="#thumbForest" title="GOO_KM"
-        position="-4.0 1.5 -6.0" rotation="0 0 0"></a-link>
-    <a-link  obb-collider portal-url
-        href="/aframe/leejeongmin.html" image="#thumbForest" title="LEE_JM"
-        position="0.0 1.5 -6.0" rotation="0 0 0"></a-link>
-    <a-link  obb-collider portal-url
-        href="/aframe/shooter/examples/supercraft/index.html" image="#thumbForest" title="SHOOTING"
-        position="4.0 1.5 -6.0" rotation="0 0 0"></a-link>
-    <a-link  obb-collider portal-url
-        href="/aframe/street/index.html" image="#thumbForest" title="street"
-        position="8.0 1.5 -6.0" rotation="0 0 0"></a-link>
-        
-    <a-camera position="0 1.6 0" rotation="0 180 0">
+    <a-camera
+        position="0 1.7 0" rotation="0 180 0">
         <a-cursor></a-cursor>
         <a-entity id="player" gltf-model="#boss" 
             avatar
-            position="-1 -0.6 -2" rotation="0 180 0" scale="0.01 0.01 0.01"
+            position="-1 -0.7 -2" rotation="0 180 0" scale="0.01 0.01 0.01"
             light="type: point; intensity: 0.5; distance: 10; decay: 2"
             >
         </a-entity>
     </a-camera>
+
+    <a-link  portal-url 
+        href="/aframe/seo/index.html" image="#thumbForest" title="SEO_JU"
+        position="-8.0 1.5 -6.0" rotation="0 0 0"></a-link>
+    <a-link  portal-url 
+        href="/aframe/GKM/public/index.html" image="#thumbForest" title="GOO_KM"
+        position="-4.0 1.5 -6.0" rotation="0 0 0"></a-link>
+    <a-link  portal-url
+        href="/aframe/leejeongmin.html" image="#thumbForest" title="LEE_JM"
+        position="0.0 1.5 -6.0" rotation="0 0 0"></a-link>
+    <a-link  portal-url
+        href="/aframe/shooter/examples/supercraft/index.html" image="#thumbForest" title="SHOOTING"
+        position="4.0 1.5 -6.0" rotation="0 0 0"></a-link>
+    <a-link  portal-url
+        href="/aframe/street/index.html" image="#thumbForest" title="street"
+        position="8.0 1.5 -6.0" rotation="0 0 0"></a-link>
+        
     <a-entity environment="preset: forest; dressingAmount: 500"></a-entity>
 </a-scene>
     <!-- End scene    -->    
