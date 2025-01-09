@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Escape Room</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js/examples/js/loaders/FBXLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js/examples/js/libs/fflate.min.js"></script>
+  </head>
+  <body>
+    <a-scene physics="debug: true">
+      <a-assets>
+        <a-asset-item id="spongebob" src="Sponge Bob/scene.gltf"></a-asset-item>
+      </a-assets>
+
+      <!-- 플레이어 -->
+      <a-entity id="player"
+                gltf-model="#spongebob"
+                position="0 0.1 0"
+                rotation="0 270 0"
+                scale="0.0015 0.0015 0.0015"
+                player-physics>
+      </a-entity>
+
+      <!-- 발판들과 도착 지점 수정 -->
+      <a-entity id="maze">
+        <!-- 시작 플랫폼 -->
+        <a-box class="platform"
+               position="0 0 0" 
+               width="5" height="0.1" depth="5"
+               color="#4CC3D9"
+               shadow>
+        </a-box>
+
+        <!-- 발판 코스 (지그재그 패턴과 높이 변화) -->
+        <a-box class="platform" position="6 2 0" width="3" height="0.1" depth="3" color="#666" shadow></a-box>
+        <a-box class="platform" position="12 3 -3" width="3" height="0.1" depth="3" color="#777" shadow></a-box>
+        <a-box class="platform" position="8 4 -6" width="3" height="0.1" depth="3" color="#666" shadow></a-box>
+        <a-box class="platform" position="14 5 -8" width="3" height="0.1" depth="3" color="#777" shadow></a-box>
+        <a-box class="platform" position="20 6 -6" width="3" height="0.1" depth="3" color="#666" shadow></a-box>
+        <a-box class="platform" position="16 7 -3" width="3" height="0.1" depth="3" color="#777" shadow></a-box>
+        <a-box class="platform" position="22 8 0" width="3" height="0.1" depth="3" color="#666" shadow></a-box>
+        <a-box class="platform" position="28 9 -2" width="3" height="0.1" depth="3" color="#777" shadow></a-box>
+        <a-box class="platform" position="24 10 -5" width="3" height="0.1" depth="3" color="#666" shadow></a-box>
+        <a-box class="platform" position="30 11 -7" width="3" height="0.1" depth="3" color="#777" shadow></a-box>
+        <a-box class="platform" position="26 12 -9" width="3" height="0.1" depth="3" color="#666" shadow></a-box>
+        <a-box class="platform" position="32 13 -6" width="3" height="0.1" depth="3" color="#777" shadow></a-box>
+        <a-box class="platform" position="38 14 -4" width="3" height="0.1" depth="3" color="#666" shadow></a-box>
+        <a-box class="platform" position="34 15 -2" width="3" height="0.1" depth="3" color="#777" shadow></a-box>
+        <a-box class="platform" position="40 16 0" width="3" height="0.1" depth="3" color="#666" shadow></a-box>
+        
+        <!-- 추가 발판들 (더 복잡한 패턴) -->
+        <a-box class="platform" position="44 17 -3" width="3" height="0.1" depth="3" color="#777" shadow></a-box>
+        <a-box class="platform" position="48 18 -6" width="3" height="0.1" depth="3" color="#666" shadow></a-box>
+        <a-box class="platform" position="52 19 -3" width="3" height="0.1" depth="3" color="#777" shadow></a-box>
+        <a-box class="platform" position="56 20 0" width="3" height="0.1" depth="3" color="#666" shadow></a-box>
+        
+        <!-- 도착 지점 수정 -->
+        <a-box class="platform goal"
+               position="6 8 0"
+               width="8" height="0.1" depth="8"
+               color="#FFD700"
+               material="metalness: 0.7; roughness: 0.3"
+               shadow>
+            <!-- 장식용 기둥들 -->
+            <a-cylinder position="-3.5 2 -3.5" radius="0.2" height="4" color="#FF4444" shadow></a-cylinder>
+            <a-cylinder position="3.5 2 -3.5" radius="0.2" height="4" color="#FF4444" shadow></a-cylinder>
+            <a-cylinder position="-3.5 2 3.5" radius="0.2" height="4" color="#FF4444" shadow></a-cylinder>
+            <a-cylinder position="3.5 2 3.5" radius="0.2" height="4" color="#FF4444" shadow></a-cylinder>
+
+            <!-- 상단 장식 -->
+            <a-torus-knot position="0 4 0" color="#FFD700" radius="1" radius-tubular="0.1" segments-tubular="64"></a-torus-knot>
+            
+            <!-- 빛나는 효과 -->
+            <a-light type="point" color="#FFD700" position="0 3 0" intensity="1.5" distance="10"></a-light>
+        </a-box>
+
+        <!-- 환경 조명 -->
+        <a-light type="ambient" color="#445" intensity="0.5"></a-light>
+        <a-light type="directional" color="#FFF" intensity="1" position="-1 1 2"></a-light>
+
+        <!-- 배경 -->
+        <a-sky color="#1E1E1E"></a-sky>
+        <a-entity environment="preset: starry"></a-entity>
+      </a-entity>
+
+      <!-- 주변 환경 -->
+      <a-sky color="#87CEEB"></a-sky>
+      <a-light type="ambient" color="#888"></a-light>
+      <a-light type="directional" position="0 1 1" intensity="0.5"></a-light>
+
+      <!-- 시각적 효과를 위한 안개 -->
+      <a-entity fog="type: linear; color: #87CEEB; near: 10; far: 50"></a-entity>
+
+      <!-- 카메라 설정 -->
+      <a-entity id="camera-rig" third-person-camera>
+          <a-camera look-controls="true"
+                    wasd-controls-enabled="false"
+                    position="0 0 0">
+          </a-camera>
+      </a-entity>
+    </a-scene>
+
+    <style>
+      #inGameAlert {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        z-index: 1000;
+        min-width: 300px;
+      }
+
+      #inGameAlert h2 {
+        color: #FFD700;
+        margin-bottom: 15px;
+      }
+
+      #inGameAlert button {
+        background: #FFD700;
+        border: none;
+        padding: 10px 30px;
+        border-radius: 5px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 15px;
+      }
+
+      #inGameAlert button:hover {
+        background: #FFC000;
+      }
+
+      #timerUI {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: white;
+        font-size: 24px;
+        font-family: Arial;
+        z-index: 1000;
+      }
+    </style>
+
+    <div id="inGameAlert">
+      <h2>SUCCESS!</h2>
+      <p id="clearTimeText"></p>
+      <button onclick="document.querySelector('[player-physics]').components['player-physics'].confirmReset()">Press OK to continue</button>
+    </div>
+
+    <script>
+      AFRAME.registerComponent('player-physics', {
+        init: function() {
+          this.speed = 0.15;
+          this.jumpForce = 0.4;
+          this.gravity = -0.015;
+          this.velocity = new THREE.Vector3();
+          this.moveVelocity = new THREE.Vector3();
+          this.isOnGround = true;
+          this.characterHeight = 0.1;
+          this.platformOffset = 0.1;
+          this.lastGroundY = 0.1;
+          this.hasReachedGoal = false;
+          
+          // 기존 타이머 제거 후 새로 생성
+          const existingTimer = document.getElementById('timerUI');
+          if (existingTimer) {
+            existingTimer.remove();
+          }
+          
+          // 타이머 UI 생성
+          const timerUI = document.createElement('div');
+          timerUI.id = 'timerUI';
+          timerUI.textContent = 'Time: 0.00';
+          document.body.appendChild(timerUI);
+          
+          // 타이머 초기화
+          this.startTime = Date.now();
+          this.isRunning = true;
+          this.elapsedTime = 0;
+          
+          // 키 입력 초기화
+          this.keys = {
+            w: false, a: false, s: false, d: false, space: false
+          };
+
+          // 키 이벤트 리스너
+          document.addEventListener('keydown', (event) => {
+            switch(event.key.toLowerCase()) {
+              case 'w': this.keys.w = true; break;
+              case 'a': this.keys.a = true; break;
+              case 's': this.keys.s = true; break;
+              case 'd': this.keys.d = true; break;
+              case ' ': 
+                if (this.isOnGround) {
+                  this.velocity.y = this.jumpForce;
+                  this.isOnGround = false;
+                }
+                break;
+            }
+          });
+
+          document.addEventListener('keyup', (event) => {
+            switch(event.key.toLowerCase()) {
+              case 'w': this.keys.w = false; break;
+              case 'a': this.keys.a = false; break;
+              case 's': this.keys.s = false; break;
+              case 'd': this.keys.d = false; break;
+            }
+          });
+        },
+
+        tick: function() {
+          if (this.hasReachedGoal) return;
+
+          // 타이머 업데이트
+          if (this.isRunning) {
+            this.elapsedTime = Date.now() - this.startTime;
+            const seconds = Math.floor(this.elapsedTime / 1000);
+            const milliseconds = Math.floor((this.elapsedTime % 1000) / 10);
+            document.getElementById('timerUI').textContent = 
+              `Time: ${seconds}.${milliseconds.toString().padStart(2, '0')}`;
+          }
+
+          const position = this.el.getAttribute('position');
+          const platforms = document.querySelectorAll('.platform');
+          
+          const previousY = position.y;
+          
+          const camera = document.querySelector('a-camera');
+          const cameraRotation = camera.getAttribute('rotation');
+          const rotationY = THREE.MathUtils.degToRad(cameraRotation.y);
+          
+          let moveX = 0;
+          let moveZ = 0;
+          
+          if (this.keys.w) moveX -= Math.sin(rotationY), moveZ -= Math.cos(rotationY);
+          if (this.keys.s) moveX += Math.sin(rotationY), moveZ += Math.cos(rotationY);
+          if (this.keys.a) moveX -= Math.cos(rotationY), moveZ += Math.sin(rotationY);
+          if (this.keys.d) moveX += Math.cos(rotationY), moveZ -= Math.sin(rotationY);
+          
+          if (moveX !== 0 || moveZ !== 0) {
+            const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
+            this.moveVelocity.x = (moveX / length) * this.speed;
+            this.moveVelocity.z = (moveZ / length) * this.speed;
+          } else {
+            this.moveVelocity.x = 0;
+            this.moveVelocity.z = 0;
+          }
+          
+          position.x += this.moveVelocity.x;
+          position.z += this.moveVelocity.z;
+          
+          if (!this.isOnGround) {
+            this.velocity.y += this.gravity;
+            position.y += this.velocity.y;
+          } else {
+            position.y = this.lastGroundY;
+            this.velocity.y = 0;
+          }
+          
+          let isOnAnyPlatform = false;
+          let maxY = -Infinity;
+
+          platforms.forEach((platform) => {
+            const platformPos = platform.getAttribute('position');
+            const platformScale = platform.getAttribute('geometry');
+            const halfWidth = platformScale.width / 2;
+            const halfDepth = platformScale.depth / 2;
+
+            if (Math.abs(position.x - platformPos.x) < halfWidth &&
+                Math.abs(position.z - platformPos.z) < halfDepth &&
+                Math.abs(position.y - (platformPos.y + this.characterHeight)) < 0.2 &&
+                this.velocity.y <= 0) {
+              
+              isOnAnyPlatform = true;
+              maxY = Math.max(maxY, platformPos.y + this.characterHeight);
+
+              if (platform.classList.contains('goal') && !this.hasReachedGoal) {
+                this.showGoalMessage();
+                return;
+              }
+            }
+          });
+
+          if (isOnAnyPlatform) {
+            position.y = maxY;
+            this.velocity.y = 0;
+            this.isOnGround = true;
+            this.lastGroundY = position.y;
+          } else {
+            this.isOnGround = false;
+          }
+
+          if (position.y < -5) {
+            this.resetPosition();
+            return;
+          }
+
+          this.el.setAttribute('position', position);
+          
+          if (this.moveVelocity.x !== 0 || this.moveVelocity.z !== 0) {
+            const angle = Math.atan2(this.moveVelocity.x, this.moveVelocity.z);
+            this.el.setAttribute('rotation', {
+              x: 0,
+              y: THREE.MathUtils.radToDeg(angle) + 270,
+              z: 0
+            });
+          }
+        },
+
+        showGoalMessage: function() {
+          if (this.hasReachedGoal) return;
+          
+          this.hasReachedGoal = true;
+          this.isRunning = false;
+          
+          const seconds = Math.floor(this.elapsedTime / 1000);
+          const milliseconds = Math.floor((this.elapsedTime % 1000) / 10);
+          
+          const inGameAlert = document.getElementById('inGameAlert');
+          const clearTimeText = document.getElementById('clearTimeText');
+          clearTimeText.textContent = `Completion Time: ${seconds}.${milliseconds.toString().padStart(2, '0')} seconds`;
+          inGameAlert.style.display = 'block';
+        },
+
+        resetPosition: function() {
+          this.el.setAttribute('position', {x: 0, y: 0.1, z: 0});
+          this.el.setAttribute('rotation', {x: 0, y: 270, z: 0});
+          this.velocity.set(0, 0, 0);
+          this.moveVelocity.set(0, 0, 0);
+          this.isOnGround = true;
+          this.hasReachedGoal = false;
+          
+          // 타이머 리셋
+          this.startTime = Date.now();
+          this.isRunning = true;
+          this.elapsedTime = 0;
+          document.getElementById('timerUI').textContent = 'Time: 0.00';
+        },
+
+        handleGoalReached: function() {
+          if (this.hasReachedGoal) return;
+          
+          this.hasReachedGoal = true;
+          this.isRunning = false;
+          
+          const seconds = Math.floor(this.elapsedTime / 1000);
+          const milliseconds = Math.floor((this.elapsedTime % 1000) / 10);
+          
+          const inGameAlert = document.getElementById('inGameAlert');
+          const clearTimeText = document.getElementById('clearTimeText');
+          clearTimeText.textContent = `Completion Time: ${seconds}.${milliseconds.toString().padStart(2, '0')} seconds`;
+          inGameAlert.style.display = 'block';
+        },
+
+        confirmReset: function() {
+          document.getElementById('inGameAlert').style.display = 'none';
+          this.resetPosition();
+        }
+      });
+
+      AFRAME.registerComponent('third-person-camera', {
+        init: function() {
+          this.targetEl = document.querySelector('#player');
+          this.cameraEl = this.el.querySelector('a-camera');
+          
+          this.distance = 3;
+          this.height = 2;
+          this.smoothFactor = 0.1;
+        },
+        
+        tick: function() {
+          if (!this.targetEl) return;
+          
+          const targetPosition = this.targetEl.getAttribute('position');
+          const cameraRotation = this.cameraEl.getAttribute('rotation');
+          
+          const angle = THREE.MathUtils.degToRad(cameraRotation.y);
+          const offsetX = Math.sin(angle) * this.distance;
+          const offsetZ = Math.cos(angle) * this.distance;
+          
+          const targetCameraPos = {
+            x: targetPosition.x + offsetX,
+            y: targetPosition.y + this.height,
+            z: targetPosition.z + offsetZ
+          };
+          
+          const currentPos = this.el.getAttribute('position');
+          
+          const newPos = {
+            x: currentPos.x + (targetCameraPos.x - currentPos.x) * this.smoothFactor,
+            y: currentPos.y + (targetCameraPos.y - currentPos.y) * this.smoothFactor,
+            z: currentPos.z + (targetCameraPos.z - currentPos.z) * this.smoothFactor
+          };
+          
+          this.el.setAttribute('position', newPos);
+        }
+      });
+
+      AFRAME.registerComponent('model-loaded', {
+        init: function() {
+          this.el.addEventListener('model-loaded', () => {
+            console.log('스폰지밥 모델 로딩 완료!');
+          });
+        }
+      });
+
+      AFRAME.registerSystem('physics', {
+        init: function() {
+          this.el.setAttribute('physics', {
+            gravity: -9.8,
+            debug: true
+          });
+        }
+      });
+
+      AFRAME.registerComponent('ball-controls', {
+        init: function() {
+          this.speed = 0.15;
+          this.jumpForce = 5;
+          this.canJump = true;
+          
+          this.el.addEventListener('collide', (e) => {
+            if (e.detail.body.el.classList.contains('solid')) {
+              this.canJump = true;
+            }
+          });
+        },
+        
+        tick: function() {
+          if (!this.el.body) return;
+          
+          const currentPosition = this.el.getAttribute('position');
+          
+          if (currentPosition.y < -5) {
+            this.resetPosition();
+            alert('추락했습니다! 처음부터 다시 시작합니다.');
+            return;
+          }
+          
+          const rotation = this.el.sceneEl.camera.el.getAttribute('rotation');
+          const rotationY = THREE.MathUtils.degToRad(rotation.y);
+          
+          let moveX = 0;
+          let moveZ = 0;
+          
+          if (this.keys.ArrowUp) {
+            moveX -= Math.sin(rotationY);
+            moveZ -= Math.cos(rotationY);
+          }
+          if (this.keys.ArrowDown) {
+            moveX += Math.sin(rotationY);
+            moveZ += Math.cos(rotationY);
+          }
+          if (this.keys.ArrowLeft) {
+            moveX -= Math.cos(rotationY);
+            moveZ += Math.sin(rotationY);
+          }
+          if (this.keys.ArrowRight) {
+            moveX += Math.cos(rotationY);
+            moveZ -= Math.sin(rotationY);
+          }
+          
+          if (moveX !== 0 || moveZ !== 0) {
+            const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
+            moveX = (moveX / length) * this.speed;
+            moveZ = (moveZ / length) * this.speed;
+            
+            this.el.body.velocity.x = moveX * 10;
+            this.el.body.velocity.z = moveZ * 10;
+          } else {
+            this.el.body.velocity.x *= 0.95;
+            this.el.body.velocity.z *= 0.95;
+          }
+          
+          if (this.keys.Space && this.canJump) {
+            this.el.body.velocity.y = this.jumpForce;
+            this.canJump = false;
+          }
+        },
+        
+        resetPosition: function() {
+          this.el.setAttribute('position', {x: 0, y: 1.5, z: 0});
+          this.el.setAttribute('rotation', {x: 0, y: 0, z: 0});
+          if (this.el.body) {
+            this.el.body.velocity.set(0, 0, 0);
+            this.el.body.angularVelocity.set(0, 0, 0);
+          }
+          this.canJump = true;
+        }
+      });
+
+      AFRAME.registerComponent('collision-detection', {
+        init: function() {
+          this.isColliding = false;
+          this.lastValidPosition = this.el.getAttribute('position');
+          this.escaped = false;
+        },
+        
+        tick: function() {
+          const currentPosition = this.el.getAttribute('position');
+          const walls = document.querySelectorAll('#maze a-box');
+          const exit = document.querySelector('#exit');
+          let collision = false;
+          
+          for (let wall of walls) {
+            const wallPos = wall.getAttribute('position');
+            const wallWidth = wall.getAttribute('width');
+            const wallHeight = wall.getAttribute('height');
+            const wallDepth = wall.getAttribute('depth');
+            
+            if (this.checkCollision(currentPosition, wallPos, wallWidth, wallDepth)) {
+              const ballBottom = currentPosition.y - 0.5;
+              const wallTop = wallPos.y + wallHeight/2;
+              
+              if (Math.abs(ballBottom - wallTop) < 0.2 && this.el.components['ball-controls'].velocity <= 0) {
+                currentPosition.y = wallTop + 0.5;
+                this.el.setAttribute('position', currentPosition);
+                this.lastValidPosition = {...currentPosition};
+                this.el.components['ball-controls'].velocity = 0;
+                this.el.components['ball-controls'].canJump = true;
+                return;
+              }
+              
+              collision = true;
+              break;
+            }
+          }
+          
+          if (collision) {
+            const moveBack = {
+              x: (this.lastValidPosition.x - currentPosition.x) * 0.5,
+              y: currentPosition.y,
+              z: (this.lastValidPosition.z - currentPosition.z) * 0.5
+            };
+            this.el.setAttribute('position', {
+              x: currentPosition.x + moveBack.x,
+              y: moveBack.y,
+              z: currentPosition.z + moveBack.z
+            });
+          } else {
+            this.lastValidPosition = {...currentPosition};
+          }
+          
+          if (!this.escaped && this.checkCollision(currentPosition, exit.getAttribute('position'), 2, 2)) {
+            this.onExit();
+          }
+        },
+        
+        checkCollision: function(ballPos, objPos, width, depth) {
+          const ballRadius = 0.5;
+          return (
+            ballPos.x + ballRadius > objPos.x - width/2 &&
+            ballPos.x - ballRadius < objPos.x + width/2 &&
+            ballPos.z + ballRadius > objPos.z - depth/2 &&
+            ballPos.z - ballRadius < objPos.z + depth/2
+          );
+        },
+        
+        onExit: function() {
+          alert('Success Escape!');
+          this.escaped = true;
+        }
+      });
+
+      document.querySelector('a-scene').setAttribute('physics', {
+        driver: 'local',
+        gravity: { x: 0, y: -9.8, z: 0 },
+        debug: true,
+        iterations: 20
+      });
+
+      // 파티클 시스템 활성화
+      AFRAME.registerComponent('particle-system', {
+        schema: {
+          preset: {default: 'dust'},
+          particleCount: {default: 100},
+          color: {default: '#FFD700'}
+        }
+      });
+    </script>
+  </body>
+</html>
