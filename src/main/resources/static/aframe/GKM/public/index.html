@@ -73,12 +73,15 @@
               const deltaX = e.clientX - this.previousMouseX;
               const deltaY = e.clientY - this.previousMouseY;
               
-              // 좌우 회전은 캐릭터와 함께
-              this.model.object3D.rotation.y -= deltaX * this.mouseSensitivity;
+              // 좌메라 엔티티만 회전
+              const cameraRig = document.querySelector('#camera-rig');
+              cameraRig.object3D.rotation.y -= deltaX * this.mouseSensitivity;
               
-              // 상하 회전은 시점만
+              // 상하 시점은 카메라에만 적용
               this.rotationX -= deltaY * this.mouseSensitivity;
               this.rotationX = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.rotationX));
+              const camera = document.querySelector('#camera');
+              camera.object3D.rotation.x = this.rotationX;
               
               this.previousMouseX = e.clientX;
               this.previousMouseY = e.clientY;
@@ -100,6 +103,8 @@
             // 초기 Idle 애니메이션 시작
             this.playAnimation('Idle0');
           });
+          
+          this.rotationSpeed = 2; // 회전 속도
         },
         
         playAnimation: function(newAnim) {
@@ -118,20 +123,29 @@
         },
         
         tick: function(time, deltaTime) {
+          // 일시정지 상태 확인
+          if (this.el.sceneEl.components['game-manager'].isPaused) {
+            return;
+          }
           // 이동 방향 계산
           this.moveVector.set(0, 0, 0);
           
           // 전진/후진
-          if (this.keys.w) this.moveVector.z = this.speed;
-          if (this.keys.s) this.moveVector.z = -this.speed;
+          if (this.keys.w) this.moveVector.z = this.speed;   // 전진
+          if (this.keys.s) this.moveVector.z = -this.speed;  // 후진
           
-          // A/D 키로 회전
+          // 회전 방향 다시 반전
           if (this.keys.a) {
-            this.model.object3D.rotation.y += 0.03;
+            this.model.object3D.rotation.y += this.rotationSpeed * (deltaTime / 1000); // 왼쪽으로 회전
           }
           if (this.keys.d) {
-            this.model.object3D.rotation.y -= 0.03;
+            this.model.object3D.rotation.y -= this.rotationSpeed * (deltaTime / 1000); // 오른쪽으로 회전
           }
+          
+          // 캐릭터의 현재 회전을 고려하여 이동 벡터 회전
+          const rotationMatrix = new THREE.Matrix4();
+          rotationMatrix.makeRotationY(this.model.object3D.rotation.y);
+          this.moveVector.applyMatrix4(rotationMatrix);
           
           // 점프 처리
           if (this.keys[' '] && !this.isJumping) {
@@ -139,12 +153,10 @@
             this.jumpVelocity = this.jumpSpeed;
           }
           
-          // 점프 물리 계산
           if (this.isJumping) {
             this.model.object3D.position.y += this.jumpVelocity;
             this.jumpVelocity -= this.gravity;
             
-            // 바닥에 닿았는지 확인
             if (this.model.object3D.position.y <= this.groundLevel) {
               this.model.object3D.position.y = this.groundLevel;
               this.isJumping = false;
@@ -152,21 +164,17 @@
             }
           }
           
-          // 캐릭터의 회현재 회전에 따라 이동 방향 조정
-          this.moveVector.applyQuaternion(this.model.object3D.quaternion);
-          
-          // 수평 이동만 사용 (y값은 점프에서 처리)
+          // 이동 적용
           this.model.object3D.position.x += this.moveVector.x;
           this.model.object3D.position.z += this.moveVector.z;
           
-          // 애니메이션 태 데이트
+          // 애니메이션 업데이트
           if (this.mixer) {
             this.mixer.update(deltaTime / 1000);
             
-            // 애니메이션 태 정
             if (this.isJumping) {
               this.playAnimation('Jumping0');
-            } else if (this.keys.w || this.keys.s) {
+            } else if (Math.abs(this.moveVector.x) > 0.01 || Math.abs(this.moveVector.z) > 0.01) {
               this.playAnimation('Walking0');
             } else {
               this.playAnimation('Idle0');
@@ -178,23 +186,66 @@
 
     <!-- 카메라 팔로우 스크립트 수정 -->
     <script>
-      AFRAME.registerComponent('camera-follow', {
+      AFRAME.registerComponent('unreal-camera-control', {
         schema: {
           target: { type: 'selector' },
           distance: { type: 'number', default: 5 },
-          height: { type: 'number', default: 2 }
+          height: { type: 'number', default: 3.5 },
+          rotationSpeed: { type: 'number', default: 0.002 },
+          smoothFactor: { type: 'number', default: 0.1 },
+          tiltAngle: { type: 'number', default: 10 }
         },
-        
+
         init: function() {
-          this.cameraRotation = new THREE.Euler();
+          this.currentRotation = new THREE.Euler();
+          this.targetRotation = new THREE.Euler();
+          this.isMouseDown = false;
+          this.mouseX = 0;
+          this.mouseY = 0;
+          this.targetPosition = new THREE.Vector3();
+          this.currentPosition = new THREE.Vector3();
+          
+          // 마우스 이벤트 리스너
+          document.addEventListener('mousedown', (e) => {
+            if (e.button === 2) { // 오른쪽 마우스 버튼
+              this.isMouseDown = true;
+              this.mouseX = e.clientX;
+              this.mouseY = e.clientY;
+            }
+          });
+          
+          document.addEventListener('mouseup', (e) => {
+            if (e.button === 2) {
+              this.isMouseDown = false;
+            }
+          });
+          
+          document.addEventListener('mousemove', (e) => {
+            if (this.isMouseDown) {
+              const deltaX = e.clientX - this.mouseX;
+              
+              // deltaX의 부호를 반대로 변경 (- 제거)
+              this.targetRotation.y -= deltaX * this.data.rotationSpeed;
+              
+              this.mouseX = e.clientX;
+              this.mouseY = e.clientY;
+            }
+          });
+          
+          // 오른쪽 클릭 메뉴 방지
+          document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+          });
         },
-        
+
         tick: function() {
           if (!this.data.target) return;
           
-          const targetPosition = this.data.target.object3D.position;
-          const targetRotation = this.data.target.object3D.rotation;
-          const characterMovement = this.data.target.components['character-movement'];
+          // 부드러운 카메라 회전 (좌우만)
+          this.currentRotation.y += (this.targetRotation.y - this.currentRotation.y) * this.data.smoothFactor;
+          
+          // 타겟 위치 가져오기
+          this.data.target.object3D.getWorldPosition(this.targetPosition);
           
           // 카메라 위치 계산
           const offset = new THREE.Vector3(
@@ -203,22 +254,21 @@
             -this.data.distance
           );
           
-          // 캐릭터의 좌우 회전만 따라가기
-          offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), targetRotation.y);
+          // 회전 적용 (좌우만)
+          offset.applyEuler(new THREE.Euler(0, this.currentRotation.y, 0));
           
-          // 카메라 위치 업데이트
-          this.el.object3D.position.x = targetPosition.x + offset.x;
-          this.el.object3D.position.y = targetPosition.y + offset.y;
-          this.el.object3D.position.z = targetPosition.z + offset.z;
+          // 부드러운 카메라 이동
+          this.currentPosition.x += (this.targetPosition.x + offset.x - this.currentPosition.x) * this.data.smoothFactor;
+          this.currentPosition.y += (this.targetPosition.y + offset.y - this.currentPosition.y) * this.data.smoothFactor;
+          this.currentPosition.z += (this.targetPosition.z + offset.z - this.currentPosition.z) * this.data.smoothFactor;
           
-          // 시점 회전 적용 (roll 회전 없이)
-          if (characterMovement) {
-            this.el.object3D.rotation.set(
-              characterMovement.rotationX,
-              targetRotation.y + Math.PI,
-              0  // roll(z축 회전)을 0으로 고정
-            );
-          }
+          // 카메라 위치와 회전 업데이트 (좌우 회전 + 고정된 하향 각도)
+          this.el.object3D.position.copy(this.currentPosition);
+          this.el.object3D.rotation.set(
+            THREE.MathUtils.degToRad(this.data.tiltAngle), // X축 회전 (하향)
+            this.currentRotation.y + Math.PI,  // Y축 회전
+            0  // Z축 회전
+          );
         }
       });
     </script>
@@ -283,6 +333,18 @@
           // 좀비 생성 이벤트 리스너
           this.el.addEventListener('zombieSpawned', () => {
               this.zombieCount++;
+          });
+
+          this.isPaused = false;
+          
+          // 일시정지 UI 생성
+          this.createPauseScreen();
+          
+          // ESC 키 이벤트 리스너 추가
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isGameStarted && !this.isGameOver) {
+              this.togglePause();
+            }
           });
         },
 
@@ -361,7 +423,7 @@
         },
 
         updateTimer: function() {
-          if (!this.isGameStarted || this.isGameOver) return;
+          if (!this.isGameStarted || this.isGameOver || this.isPaused) return;
           
           const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
           this.timerEl.querySelector('span:last-child').textContent = `생존 시간: ${elapsed}초`;
@@ -742,6 +804,95 @@
               console.error('Error:', error);
               alert('기록 조회 중 오류가 발생했습니다.');
             });
+        },
+
+        createPauseScreen: function() {
+          const pauseScreen = document.createElement('div');
+          pauseScreen.id = 'pauseScreen';
+          pauseScreen.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            font-family: Arial, sans-serif;
+          `;
+
+          pauseScreen.innerHTML = `
+            <h1 style="color: white; font-size: 3em; margin-bottom: 1em;">일시정지</h1>
+            <div style="display: flex; flex-direction: column; gap: 1em;">
+              <button id="resumeButton" style="
+                padding: 0.8em 2em;
+                font-size: 1.2em;
+                background: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                transition: background 0.3s;
+              ">게임 재개</button>
+              <button id="restartButton" style="
+                padding: 0.8em 2em;
+                font-size: 1.2em;
+                background: #f44336;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                transition: background 0.3s;
+              ">게임 재시작</button>
+            </div>
+          `;
+
+          document.body.appendChild(pauseScreen);
+
+          // 버튼 이벤트 리스너
+          document.getElementById('resumeButton').addEventListener('click', () => {
+            this.togglePause();
+          });
+
+          document.getElementById('restartButton').addEventListener('click', () => {
+            window.location.reload();
+          });
+
+          // 호버 효과
+          const buttons = pauseScreen.querySelectorAll('button');
+          buttons.forEach(button => {
+            button.addEventListener('mouseover', () => {
+              button.style.opacity = '0.9';
+              button.style.transform = 'scale(1.05)';
+            });
+            button.addEventListener('mouseout', () => {
+              button.style.opacity = '1';
+              button.style.transform = 'scale(1)';
+            });
+          });
+        },
+
+        togglePause: function() {
+          this.isPaused = !this.isPaused;
+          const pauseScreen = document.getElementById('pauseScreen');
+          
+          if (this.isPaused) {
+            pauseScreen.style.display = 'flex';
+            // 타이머 일시정지를 위해 현재 시간 저장
+            this.pauseStartTime = Date.now();
+            this.el.emit('gamePaused');
+          } else {
+            pauseScreen.style.display = 'none';
+            // 일시정지된 시간만큼 시작 시간 조정
+            const pauseDuration = Date.now() - this.pauseStartTime;
+            this.startTime += pauseDuration;
+            this.el.emit('gameResumed');
+            // 타이머 재시작
+            this.updateTimer();
+          }
         }
       });
 
@@ -782,6 +933,17 @@
         },
 
         tick: function(time, deltaTime) {
+          // 일시정지 상태 확인
+          if (this.el.sceneEl.components['game-manager'].isPaused) {
+            if (this.mixer) {
+              this.mixer.timeScale = 0; // 애니메이션 일시정지
+            }
+            return;
+          } else {
+            if (this.mixer) {
+              this.mixer.timeScale = 1; // 애니메이션 재개
+            }
+          }
           if (!this.mixer || !this.data.target) return;
           
           const delta = Math.min(deltaTime / 1000, 0.1);
@@ -875,7 +1037,9 @@
         },
 
         tick: function(time, deltaTime) {
-          if (!this.hasStartedSpawning || this.el.sceneEl.components['game-manager'].isGameOver) {
+          if (!this.hasStartedSpawning || 
+              this.el.sceneEl.components['game-manager'].isGameOver ||
+              this.el.sceneEl.components['game-manager'].isPaused) {
             return;
           }
 
@@ -972,8 +1136,14 @@
         <a-entity 
             id="camera" 
             camera 
-            position="0 2 3"
-            camera-follow="target: #character; distance: 3; height: 1.5">
+            position="0 2 5"
+            unreal-camera-control="
+              target: #character; 
+              distance: 5; 
+              height: 3.5;
+              rotationSpeed: 0.002; 
+              smoothFactor: 0.1;
+              tiltAngle: -10">
             <a-cursor color="#FAFAFA"></a-cursor>
         </a-entity>
 
