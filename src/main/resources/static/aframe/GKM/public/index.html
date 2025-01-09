@@ -9,12 +9,8 @@
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
     <script src="https://unpkg.com/aframe-environment-component@1.3.2/dist/aframe-environment-component.min.js"></script>
-    <script crossorigin="anonymous" src="https://cdn.jsdeliver.net/gh/c-frame/aframe-physics-system@4.2.2/dist/aframe-physics-system.min.js"></script>
-
-</head>
-<body>
-    <!-- 컴포넌트는 body 안에서 정의  -->
-    <script src="/aframe/components/commons.js"></script>    
+    <script src="https://cdn.jsdeliver.net/gh/c-frame/aframe-physics-system@4.2.2/dist/aframe-physics-system.min.js"></script>
+    
     <!-- 캐릭터 움직임 컨트롤 스크립트 수정 -->
     <script>
       AFRAME.registerComponent('character-movement', {
@@ -107,12 +103,12 @@
         playAnimation: function(newAnim) {
           if (this.currentAnimation === newAnim) return;
           
-          // 이전 애니메이�� 페이드아웃
+          // 이전 애니메이션 페이드아웃
           if (this.actions[this.currentAnimation]) {
             this.actions[this.currentAnimation].fadeOut(0.2);
           }
           
-          // 새 애니메이� 페이드인
+          // 새 애니메이션 페이드인
           if (this.actions[newAnim]) {
             this.actions[newAnim].reset().fadeIn(0.2).play();
             this.currentAnimation = newAnim;
@@ -161,11 +157,11 @@
           this.model.object3D.position.x += this.moveVector.x;
           this.model.object3D.position.z += this.moveVector.z;
           
-          // 애니메이션 �태 �데이트
+          // 애니메이션 태 데이트
           if (this.mixer) {
             this.mixer.update(deltaTime / 1000);
             
-            // 애니메이션 �태 �정
+            // 애니메이션 태 정
             if (this.isJumping) {
               this.playAnimation('Jumping0');
             } else if (this.keys.w || this.keys.s) {
@@ -225,20 +221,179 @@
       });
     </script>
 
-    
-    <a-scene physics loading-screen="dotsColor: white; backgroundColor: #000000">
+    <!-- 게임 상태 관리 컴포넌트 -->
+    <script>
+      AFRAME.registerComponent('game-manager', {
+        init: function() {
+          this.gameTime = 100;
+          this.isGameOver = false;
+          this.timerEl = document.createElement('div');
+          this.timerEl.style.position = 'fixed';
+          this.timerEl.style.top = '20px';
+          this.timerEl.style.left = '20px';
+          this.timerEl.style.color = 'white';
+          this.timerEl.style.fontSize = '24px';
+          document.body.appendChild(this.timerEl);
+          
+          this.startGame();
+        },
+
+        startGame: function() {
+          this.startTime = Date.now();
+          this.updateTimer();
+        },
+
+        updateTimer: function() {
+          if (this.isGameOver) return;
+          
+          const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+          const remaining = Math.max(0, this.gameTime - elapsed);
+          this.timerEl.textContent = `남은 시간: ${remaining}초`;
+          
+          if (remaining <= 0) {
+            this.gameWin();
+          } else {
+            requestAnimationFrame(this.updateTimer.bind(this));
+          }
+        },
+
+        gameWin: function() {
+          this.isGameOver = true;
+          this.showMessage('탈출 성공!', '#4CAF50');
+        },
+
+        gameLose: function() {
+          this.isGameOver = true;
+          this.showMessage('게임 오버!', '#F44336');
+        },
+
+        showMessage: function(text, color) {
+          const messageEl = document.createElement('div');
+          messageEl.style.position = 'fixed';
+          messageEl.style.top = '50%';
+          messageEl.style.left = '50%';
+          messageEl.style.transform = 'translate(-50%, -50%)';
+          messageEl.style.color = color;
+          messageEl.style.fontSize = '48px';
+          messageEl.style.fontWeight = 'bold';
+          messageEl.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
+          messageEl.textContent = text;
+          document.body.appendChild(messageEl);
+        }
+      });
+
+      // 좀비 AI 컴포넌트
+      AFRAME.registerComponent('zombie-ai', {
+        schema: {
+          target: {type: 'selector'},
+          speed: {type: 'number', default: 0.05},
+          detectionRange: {type: 'number', default: 10},
+          runRange: {type: 'number', default: 5},
+          attackRange: {type: 'number', default: 1}
+        },
+
+        init: function() {
+          this.zombie = this.el;
+          this.moveVector = new THREE.Vector3();
+          this.currentAnimation = 'ZombieIdle';
+          this.isGameOver = false;
+
+          // 애니메이션 설정
+          this.zombie.addEventListener('model-loaded', () => {
+            this.mixer = new THREE.AnimationMixer(this.zombie.object3D);
+            this.animations = this.zombie.getObject3D('mesh').animations;
+            this.actions = {};
+            
+            this.animations.forEach(animation => {
+              const action = this.mixer.clipAction(animation);
+              action.setLoop(THREE.LoopRepeat);
+              this.actions[animation.name] = action;
+            });
+            
+            this.playAnimation('ZombieIdle');
+          });
+        },
+
+        playAnimation: function(newAnim) {
+          if (this.currentAnimation === newAnim || this.isGameOver) return;
+          
+          if (this.actions[this.currentAnimation]) {
+            this.actions[this.currentAnimation].fadeOut(0.2);
+          }
+          
+          if (this.actions[newAnim]) {
+            this.actions[newAnim].reset().fadeIn(0.2).play();
+            this.currentAnimation = newAnim;
+          }
+        },
+
+        stopAllAnimations: function() {
+          // 모든 애니메이션 정지
+          if (this.actions) {
+            Object.values(this.actions).forEach(action => {
+              action.stop();
+            });
+          }
+        },
+
+        tick: function(time, deltaTime) {
+          if (!this.data.target || !this.mixer) return;
+          
+          // 게임 오버 상태 확인
+          if (this.el.sceneEl.components['game-manager'].isGameOver) {
+            if (!this.isGameOver) {
+              // 게임 오버 시 최초 1회만 실행
+              this.isGameOver = true;
+              this.stopAllAnimations();
+            }
+            return;
+          }
+          
+          const zombiePos = this.zombie.object3D.position;
+          const targetPos = this.data.target.object3D.position;
+          const distance = zombiePos.distanceTo(targetPos);
+          
+          // 애니메이션 믹서 업데이트
+          this.mixer.update(deltaTime / 1000);
+          
+          // 공격 범위 확인
+          if (distance <= this.data.attackRange) {
+            this.el.sceneEl.components['game-manager'].gameLose();
+            this.stopAllAnimations();  // 게임 오버 시 애니메이션 정지
+            return;
+          }
+          
+          if (distance <= this.data.detectionRange) {
+            this.moveVector.subVectors(targetPos, zombiePos).normalize();
+            
+            if (distance <= this.data.runRange) {
+              zombiePos.x += this.moveVector.x * this.data.speed * 2;
+              zombiePos.z += this.moveVector.z * this.data.speed * 2;
+              this.playAnimation('ZombieRun');
+            } else {
+              zombiePos.x += this.moveVector.x * this.data.speed;
+              zombiePos.z += this.moveVector.z * this.data.speed;
+              this.playAnimation('ZombieWalk');
+            }
+            
+            this.zombie.object3D.lookAt(targetPos);
+          } else {
+            this.playAnimation('ZombieIdle');
+          }
+        }
+      });
+    </script>
+</head>
+<body>
+    <a-scene loading-screen="dotsColor: white; backgroundColor: #000000" game-manager>
         <!-- 창고 모델 추가 -->
         <a-entity
             id="warehouse"
             gltf-model="./models/warehouse/scene.gltf"
-            position="0 -2 0"
+            position="-15 -2 40"
             scale="4 4 4"
-            rotation="0 0 0"
-            static-body>
+            rotation="0 0 0">
         </a-entity>
-        <a-link  obb-collider portal-url
-            href="/" image="" title="ENTRANCE"
-            position="20 1.6 -100.0" rotation="0 0 0"></a-link>
 
         <!-- 조명 -->
         <a-light type="ambient" color="#ffffff" intensity="0.5"></a-light>
@@ -246,8 +401,9 @@
 
         <!-- 바닥 추가 -->
         <a-plane 
-            position="0 -2 0" 
+            position="15 -2 -80" 
             rotation="-90 0 0" 
+            scale="1 3 1"
             width="100" 
             height="100" 
             material="
@@ -263,11 +419,10 @@
         <a-entity
             id="character"
             gltf-model="./models/player/player.gltf"
-            position="10 0 -10"
+            position="0 0 0"
             scale="0.01 0.01 0.01"
             rotation="0 0 0"
-            character-movement
-            obb-collider>
+            character-movement>
         </a-entity>
 
         <!-- 3인칭 카메라 업데이트 -->
@@ -277,6 +432,20 @@
             position="0 2 3"
             camera-follow="target: #character; distance: 3; height: 1.5">
             <a-cursor color="#FAFAFA"></a-cursor>
+        </a-entity>
+
+        <!-- 좀비 추가 -->
+        <a-entity
+            gltf-model="./models/zombie/scene.gltf"
+            position="5 0 5"
+            scale="0.02 0.02 0.02"
+            animation-mixer
+            zombie-ai="
+              target: #character;
+              speed: 0.02;
+              detectionRange: 10;
+              runRange: 5;
+              attackRange: 1">
         </a-entity>
     </a-scene>
 </body>
