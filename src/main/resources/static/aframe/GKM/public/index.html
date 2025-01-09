@@ -230,19 +230,60 @@
           this.isGameOver = false;
           this.isGameStarted = false;
           this.playerName = '';
+          this.zombieCount = 0;
           
           // 시작 화면 생성
           this.createStartScreen();
           
-          // 타이머 엘리먼트 생성
+          // 게임 UI 컨테이너 생성
+          this.uiContainer = document.createElement('div');
+          this.uiContainer.style.cssText = `
+              position: fixed;
+              top: 20px;
+              left: 20px;
+              color: white;
+              font-family: 'Arial', sans-serif;
+              font-size: 20px;
+              display: none;
+              background: rgba(0, 0, 0, 0.5);
+              padding: 15px 20px;
+              border-radius: 10px;
+              backdrop-filter: blur(5px);
+              box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+          `;
+          
+          // 타이머 엘리먼트
           this.timerEl = document.createElement('div');
-          this.timerEl.style.position = 'fixed';
-          this.timerEl.style.top = '20px';
-          this.timerEl.style.left = '20px';
-          this.timerEl.style.color = 'white';
-          this.timerEl.style.fontSize = '24px';
-          this.timerEl.style.display = 'none';
-          document.body.appendChild(this.timerEl);
+          this.timerEl.style.cssText = `
+              margin-bottom: 8px;
+              display: flex;
+              align-items: center;
+          `;
+          this.timerEl.innerHTML = `
+              <span style="color: #4CAF50;">⏱</span>
+              <span style="margin-left: 8px;">생존 시간: 0초</span>
+          `;
+          
+          // 좀비 카운터 엘리먼트
+          this.zombieCounterEl = document.createElement('div');
+          this.zombieCounterEl.style.cssText = `
+              display: flex;
+              align-items: center;
+          `;
+          this.zombieCounterEl.innerHTML = `
+              <span style="color: #ff4444;">🧟</span>
+              <span style="margin-left: 8px;">좀비: 0마리</span>
+          `;
+          
+          // UI 요소들을 컨테이너에 추가
+          this.uiContainer.appendChild(this.timerEl);
+          this.uiContainer.appendChild(this.zombieCounterEl);
+          document.body.appendChild(this.uiContainer);
+
+          // 좀비 생성 이벤트 리스너
+          this.el.addEventListener('zombieSpawned', () => {
+              this.zombieCount++;
+          });
         },
 
         createStartScreen: function() {
@@ -271,7 +312,7 @@
               </button>
             </div>
             <div style="color: white; text-align: center; margin-top: 2em;">
-              <h2>기록</h2>
+              <h2>최고 기록 TOP 3</h2>
               <div style="
                 max-height: 400px;
                 overflow-y: auto;
@@ -312,7 +353,7 @@
           this.isGameStarted = true;
           this.startTime = Date.now();
           document.getElementById('startScreen').style.display = 'none';
-          this.timerEl.style.display = 'block';
+          this.uiContainer.style.display = 'block';
           this.updateTimer();
           
           // 게임 시작 이벤트 발생
@@ -323,7 +364,8 @@
           if (!this.isGameStarted || this.isGameOver) return;
           
           const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
-          this.timerEl.textContent = `생존 시간: ${elapsed}초`;
+          this.timerEl.querySelector('span:last-child').textContent = `생존 시간: ${elapsed}초`;
+          this.zombieCounterEl.querySelector('span:last-child').textContent = `좀비: ${this.zombieCount}마리`;
           
           requestAnimationFrame(this.updateTimer.bind(this));
         },
@@ -335,25 +377,45 @@
             
             const leaderboardList = document.getElementById('leaderboardList');
             leaderboardList.innerHTML = records
-              .map((record, index) => `
-                <li style="
-                  padding: 0.8em;
-                  margin: 0.5em 0;
-                  background: rgba(255, 255, 255, 0.05);
-                  border-radius: 5px;
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  font-size: 1.1em;
-                ">
-                  <span style="color: ${index < 3 ? '#ffdd44' : 'white'}">
-                    ${index + 1}. ${record.player_name}
-                  </span>
-                  <span style="color: #ff8888">
-                    ${record.survival_time}초
-                  </span>
-                </li>
-              `)
+              .slice(0, 3)  // 상위 3개만 사용
+              .map((record, index) => {
+                const date = new Date(record.created_at);
+                const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                
+                return `
+                  <li style="
+                    padding: 1em;
+                    margin: 0.5em 0;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 5px;
+                    font-size: 1.1em;
+                  ">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <span style="color: ${
+                        index === 0 ? '#ffd700' :  // 금색
+                        index === 1 ? '#c0c0c0' :  // 은색
+                        index === 2 ? '#cd7f32' :  // 동색
+                        'white'
+                      }">
+                        ${index + 1}위 ${record.player_name}
+                      </span>
+                      <span style="color: #ff8888">
+                        ${record.survival_time}초
+                      </span>
+                    </div>
+                    <div style="
+                      margin-top: 0.5em;
+                      font-size: 0.9em;
+                      color: #aaa;
+                      display: flex;
+                      justify-content: space-between;
+                    ">
+                      <span>좀비: ${record.zombie_count}마리</span>
+                      <span>${formattedDate}</span>
+                    </div>
+                  </li>
+                `;
+              })
               .join('');
           } catch (error) {
             console.error('리더보드 로드 실패:', error);
@@ -452,6 +514,8 @@
         gameLose: function() {
           this.isGameOver = true;
           const survivalTime = Math.floor((Date.now() - this.startTime) / 1000);
+          const currentDate = new Date();
+          const formattedDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
           
           // 기록 저장
           fetch('/api/records', {
@@ -461,12 +525,12 @@
             },
             body: JSON.stringify({
               playerName: this.playerName,
-              clearTime: survivalTime
+              clearTime: survivalTime,
+              zombieCount: this.zombieCount
             })
           })
           .then(response => response.json())
           .then(() => {
-            // 게임 오버 화면 생성
             const gameOverScreen = document.createElement('div');
             gameOverScreen.style.position = 'fixed';
             gameOverScreen.style.top = '0';
@@ -485,9 +549,11 @@
               <div style="background: rgba(0, 0, 0, 0.8); padding: 2em; border-radius: 15px; text-align: center; max-width: 80%;">
                 <h1 style="color: #ff4444; font-size: 3em; margin-bottom: 0.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">게임 오버!</h1>
                 
-                <div style="color: white; font-size: 1.5em; margin-bottom: 1.5em;">
-                  <p>플레이어: ${this.playerName}</p>
-                  <p>생존 시간: ${survivalTime}초</p>
+                <div style="color: white; font-size: 1.5em; margin-bottom: 1.5em; background: rgba(255, 255, 255, 0.1); padding: 1em; border-radius: 10px;">
+                  <p style="margin: 0.5em 0;">플레이어: ${this.playerName}</p>
+                  <p style="margin: 0.5em 0;">생존 시간: ${survivalTime}초</p>
+                  <p style="margin: 0.5em 0;">처치한 좀비: ${this.zombieCount}마리</p>
+                  <p style="margin: 0.5em 0; color: #aaa;">플레이 날짜: ${formattedDate}</p>
                 </div>
 
                 <button id="restartButton" 
@@ -504,7 +570,7 @@
                 </button>
 
                 <div style="color: white; text-align: center; margin-top: 2em;">
-                  <h2 style="color: #ffdd44; margin-bottom: 1em;">최고 기록</h2>
+                  <h2 style="color: #ffdd44; margin-bottom: 1em;">최고 기록 TOP 3</h2>
                   <div style="
                     max-height: 300px;
                     overflow-y: auto;
@@ -555,25 +621,45 @@
             
             const leaderboardList = document.getElementById('gameOverLeaderboardList');
             leaderboardList.innerHTML = records
-              .map((record, index) => `
-                <li style="
-                  padding: 0.8em;
-                  margin: 0.5em 0;
-                  background: rgba(255, 255, 255, 0.05);
-                  border-radius: 5px;
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  font-size: 1.1em;
-                ">
-                  <span style="color: ${index < 3 ? '#ffdd44' : 'white'}">
-                    ${index + 1}. ${record.player_name}
-                  </span>
-                  <span style="color: #ff8888">
-                    ${record.survival_time}초
-                  </span>
-                </li>
-              `)
+              .slice(0, 3)  // 상위 3개만 사용
+              .map((record, index) => {
+                const date = new Date(record.created_at);
+                const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                
+                return `
+                  <li style="
+                    padding: 1em;
+                    margin: 0.5em 0;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 5px;
+                    font-size: 1.1em;
+                  ">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <span style="color: ${
+                        index === 0 ? '#ffd700' :  // 금색
+                        index === 1 ? '#c0c0c0' :  // 은색
+                        index === 2 ? '#cd7f32' :  // 동색
+                        'white'
+                      }">
+                        ${index + 1}위 ${record.player_name}
+                      </span>
+                      <span style="color: #ff8888">
+                        ${record.survival_time}초
+                      </span>
+                    </div>
+                    <div style="
+                      margin-top: 0.5em;
+                      font-size: 0.9em;
+                      color: #aaa;
+                      display: flex;
+                      justify-content: space-between;
+                    ">
+                      <span>좀비: ${record.zombie_count}마리</span>
+                      <span>${formattedDate}</span>
+                    </div>
+                  </li>
+                `;
+              })
               .join('');
           } catch (error) {
             console.error('리더보드 로드 실패:', error);
@@ -834,6 +920,9 @@
 
           this.el.sceneEl.appendChild(newZombie);
           console.log('New zombie spawned at:', randomX, 0, randomZ);
+
+          // 좀비 생성 후 이벤트 발생
+          this.el.sceneEl.emit('zombieSpawned');
         }
       });
     </script>
