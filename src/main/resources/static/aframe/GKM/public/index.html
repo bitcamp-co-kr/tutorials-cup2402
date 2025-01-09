@@ -9,14 +9,14 @@
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
     <script src="https://unpkg.com/aframe-environment-component@1.3.2/dist/aframe-environment-component.min.js"></script>
-    <script src="https://cdn.jsdeliver.net/gh/c-frame/aframe-physics-system@4.2.2/dist/aframe-physics-system.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@4.2.2/dist/aframe-physics-system.min.js"></script>
     
     <!-- 캐릭터 움직임 컨트롤 스크립트 수정 -->
     <script>
       AFRAME.registerComponent('character-movement', {
         init: function () {
           this.model = this.el;
-          this.speed = 0.1;
+          this.speed = 0.2;
           this.moveVector = new THREE.Vector3();
           
           // 마우스 이벤트를 위한 변수들
@@ -29,7 +29,7 @@
           // 점프 관련 변수 추가
           this.isJumping = false;
           this.jumpVelocity = 0;
-          this.jumpSpeed = 0.15;
+          this.jumpSpeed = 0.2;
           this.gravity = 0.006;
           this.groundLevel = 0;
           
@@ -286,99 +286,162 @@
       AFRAME.registerComponent('zombie-ai', {
         schema: {
           target: {type: 'selector'},
-          speed: {type: 'number', default: 0.05},
-          detectionRange: {type: 'number', default: 10},
-          runRange: {type: 'number', default: 5},
+          speed: {type: 'number', default: 0.1},
+          detectionRange: {type: 'number', default: 99999},
           attackRange: {type: 'number', default: 1}
         },
 
         init: function() {
           this.zombie = this.el;
           this.moveVector = new THREE.Vector3();
-          this.currentAnimation = 'ZombieIdle';
+          this.currentAnimation = '';
           this.isGameOver = false;
+          this.targetPosition = new THREE.Vector3();
+          this.zombiePosition = new THREE.Vector3();
 
-          // 애니메이션 설정
           this.zombie.addEventListener('model-loaded', () => {
-            this.mixer = new THREE.AnimationMixer(this.zombie.object3D);
-            this.animations = this.zombie.getObject3D('mesh').animations;
+            console.log('Model loaded for zombie:', this.el.id);
+            const model = this.zombie.getObject3D('mesh');
+            this.mixer = new THREE.AnimationMixer(model);
+            this.animations = model.animations;
             this.actions = {};
             
             this.animations.forEach(animation => {
               const action = this.mixer.clipAction(animation);
               action.setLoop(THREE.LoopRepeat);
+              action.clampWhenFinished = true;
+              action.timeScale = 1.0;
               this.actions[animation.name] = action;
             });
             
-            this.playAnimation('ZombieIdle');
+            this.playAnimation('ZombieRunning');
           });
         },
 
+        tick: function(time, deltaTime) {
+          if (!this.mixer || !this.data.target) return;
+          
+          const delta = Math.min(deltaTime / 1000, 0.1);
+          this.mixer.update(delta);
+          
+          if (this.el.sceneEl.components['game-manager'].isGameOver) {
+            if (!this.isGameOver) {
+              this.isGameOver = true;
+              this.playAnimation('ZombieIdle');
+            }
+            return;
+          }
+
+          // 위치 업데이트
+          this.data.target.object3D.getWorldPosition(this.targetPosition);
+          this.zombie.object3D.getWorldPosition(this.zombiePosition);
+          
+          // 이동 방향 계산
+          this.moveVector.subVectors(this.targetPosition, this.zombiePosition).normalize();
+          
+          // 이동 적용
+          const moveAmount = this.data.speed * (deltaTime / 16.67);
+          this.zombie.object3D.position.x += this.moveVector.x * moveAmount;
+          this.zombie.object3D.position.z += this.moveVector.z * moveAmount;
+          
+          // 향상된 회전 로직
+          const dx = this.targetPosition.x - this.zombiePosition.x;
+          const dz = this.targetPosition.z - this.zombiePosition.z;
+          const targetAngle = Math.atan2(dx, dz);
+          
+          // 부드러운 회전을 위한 보간
+          const currentRotation = this.zombie.object3D.rotation.y;
+          const rotationDiff = targetAngle - currentRotation;
+          
+          // 회전각 정규화 (-PI to PI)
+          let normalizedDiff = rotationDiff;
+          while (normalizedDiff > Math.PI) normalizedDiff -= Math.PI * 2;
+          while (normalizedDiff < -Math.PI) normalizedDiff += Math.PI * 2;
+          
+          // 부드러운 회전 적용
+          const rotationSpeed = 0.1;
+          this.zombie.object3D.rotation.y += normalizedDiff * rotationSpeed;
+          
+          // 거리 체크
+          const distance = this.zombiePosition.distanceTo(this.targetPosition);
+          
+          if (distance <= this.data.attackRange) {
+            this.el.sceneEl.components['game-manager'].gameLose();
+            return;
+          }
+          
+          // 애니메이션
+          if (this.currentAnimation !== 'ZombieRunning') {
+            this.playAnimation('ZombieRunning');
+          }
+        },
+
         playAnimation: function(newAnim) {
-          if (this.currentAnimation === newAnim || this.isGameOver) return;
+          if (this.currentAnimation === newAnim || !this.actions) return;
           
           if (this.actions[this.currentAnimation]) {
-            this.actions[this.currentAnimation].fadeOut(0.2);
+            this.actions[this.currentAnimation].fadeOut(0.5);
           }
           
           if (this.actions[newAnim]) {
-            this.actions[newAnim].reset().fadeIn(0.2).play();
+            this.actions[newAnim]
+              .reset()
+              .fadeIn(0.5)
+              .play();
+            
             this.currentAnimation = newAnim;
           }
+        }
+      });
+
+      AFRAME.registerComponent('zombie-spawner', {
+        init: function() {
+          console.log('Zombie spawner initialized');
+          this.spawnTimer = 0;
+          this.spawnInterval = 10000;
+          this.zombieCount = 1;
+          
+          setTimeout(() => this.spawnZombie(), 1000);
         },
 
-        stopAllAnimations: function() {
-          // 모든 애니메이션 정지
-          if (this.actions) {
-            Object.values(this.actions).forEach(action => {
-              action.stop();
-            });
-          }
+        spawnZombie: function() {
+          const minX = -8;
+          const maxX = 40;
+          const minZ = -140;
+          const maxZ = 35;
+
+          const randomX = minX + Math.random() * (maxX - minX);
+          const randomZ = minZ + Math.random() * (maxZ - minZ);
+
+          const newZombie = document.createElement('a-entity');
+          newZombie.setAttribute('id', 'zombie-' + Date.now());
+          newZombie.setAttribute('gltf-model', './models/zombie/scene.gltf');
+          newZombie.setAttribute('scale', '0.02 0.02 0.02');
+          newZombie.setAttribute('animation-mixer', '');
+          newZombie.setAttribute('position', `${randomX} 0 ${randomZ}`);
+          
+          // 속도를 0.1로 설정
+          newZombie.setAttribute('zombie-ai', {
+            target: '#character',
+            speed: 0.1,
+            detectionRange: 99999,
+            attackRange: 1
+          });
+
+          this.el.sceneEl.appendChild(newZombie);
+          console.log('New zombie spawned at:', randomX, 0, randomZ);
         },
 
         tick: function(time, deltaTime) {
-          if (!this.data.target || !this.mixer) return;
-          
-          // 게임 오버 상태 확인
           if (this.el.sceneEl.components['game-manager'].isGameOver) {
-            if (!this.isGameOver) {
-              // 게임 오버 시 최초 1회만 실행
-              this.isGameOver = true;
-              this.stopAllAnimations();
-            }
             return;
           }
+
+          this.spawnTimer += deltaTime;
           
-          const zombiePos = this.zombie.object3D.position;
-          const targetPos = this.data.target.object3D.position;
-          const distance = zombiePos.distanceTo(targetPos);
-          
-          // 애니메이션 믹서 업데이트
-          this.mixer.update(deltaTime / 1000);
-          
-          // 공격 범위 확인
-          if (distance <= this.data.attackRange) {
-            this.el.sceneEl.components['game-manager'].gameLose();
-            this.stopAllAnimations();  // 게임 오버 시 애니메이션 정지
-            return;
-          }
-          
-          if (distance <= this.data.detectionRange) {
-            this.moveVector.subVectors(targetPos, zombiePos).normalize();
-            
-            if (distance <= this.data.runRange) {
-              zombiePos.x += this.moveVector.x * this.data.speed * 2;
-              zombiePos.z += this.moveVector.z * this.data.speed * 2;
-              this.playAnimation('ZombieRun');
-            } else {
-              zombiePos.x += this.moveVector.x * this.data.speed;
-              zombiePos.z += this.moveVector.z * this.data.speed;
-              this.playAnimation('ZombieWalk');
-            }
-            
-            this.zombie.object3D.lookAt(targetPos);
-          } else {
-            this.playAnimation('ZombieIdle');
+          if (this.spawnTimer >= this.spawnInterval) {
+            this.spawnTimer = 0;
+            this.spawnZombie();
           }
         }
       });
@@ -434,19 +497,10 @@
             <a-cursor color="#FAFAFA"></a-cursor>
         </a-entity>
 
-        <!-- 좀비 추가 -->
-        <a-entity
-            gltf-model="./models/zombie/scene.gltf"
-            position="5 0 5"
-            scale="0.02 0.02 0.02"
-            animation-mixer
-            zombie-ai="
-              target: #character;
-              speed: 0.02;
-              detectionRange: 10;
-              runRange: 5;
-              attackRange: 1">
-        </a-entity>
+        <!-- 좀비 스포너 -->
+        <a-entity id="zombie-spawner" zombie-spawner="enabled: true"></a-entity>
+        
+        <!-- 초기 좀비는 제거 (스포너가 생성할 것이므로) -->
     </a-scene>
 </body>
 </html>
