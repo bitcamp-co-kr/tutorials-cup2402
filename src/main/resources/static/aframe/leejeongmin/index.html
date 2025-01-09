@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Jeongmin's Game</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js/examples/js/loaders/FBXLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js/examples/js/libs/fflate.min.js"></script>
+  </head>
+  <body>
+    <a-scene physics="debug: true">
+      <a-assets>
+        <a-asset-item id="character-model" src="model.gltf"></a-asset-item>
+        <!-- Sky 텍스처 -->
+        <img id="sky-texture" src="Sky/textures/Scene_-_Root_diffuse.jpeg" crossorigin="anonymous">
+      </a-assets>
+
+      <!-- Sky 배경을 a-sky로 적용 -->
+      <a-sky 
+        src="#sky-texture"
+        radius="5000"
+        segments-height="20"
+        segments-width="20"
+        material="shader: standard; side: back; roughness: 1; metalness: 0">
+      </a-sky>
+
+      <!-- 조명 설정 -->
+      <a-entity light="type: ambient; intensity: 1.5"></a-entity>
+      <a-entity light="type: directional; intensity: 1.0; position: -1 1 0"></a-entity>
+
+      <!-- 플레이어 -->
+      <a-entity id="player"
+                gltf-model="#character-model"
+                position="0 1.5 0"
+                rotation="0 0 0"
+                scale="0.02 0.02 0.02"
+                animation-mixer
+                player-physics>
+      </a-entity>
+
+      <!-- 발판들 구성 - 일정한 간격 유지 -->
+      <a-entity id="game-level">
+        <!-- 시작 지점 -->
+        <a-box class="platform"
+               position="0 0 0"
+               width="20" height="0.1" depth="20"
+               color="#666666"
+               material="metalness: 0.5; roughness: 0.5"
+               shadow>
+          <a-text value="START!" position="0 2 0" scale="8 8 8" align="center" color="#ffffff"></a-text>
+        </a-box>
+
+        <!-- 일정한 간격으로 수정된 발판 배치 -->
+        <a-box class="platform" 
+               position="15 2 0" 
+               width="15" height="0.1" depth="15" 
+               color="#4A90E2" 
+               shadow>
+        </a-box>
+
+        <a-box class="platform" 
+               position="30 3 0" 
+               width="15" height="0.1" depth="15" 
+               color="#50E3C2" 
+               shadow>
+        </a-box>
+
+        <!-- 지그재그 구간 - 일정한 간격 -->
+        <a-box class="platform" 
+               position="45 4 -8" 
+               width="12" height="0.1" depth="12" 
+               color="#F5A623" 
+               shadow>
+        </a-box>
+        
+        <a-box class="platform" 
+               position="60 5 8" 
+               width="12" height="0.1" depth="12" 
+               color="#FF4444" 
+               shadow>
+        </a-box>
+        
+        <a-box class="platform" 
+               position="75 6 -8" 
+               width="12" height="0.1" depth="12" 
+               color="#4A90E2" 
+               shadow>
+        </a-box>
+
+        <a-box class="platform" 
+               position="90 7 0" 
+               width="15" height="0.1" depth="15" 
+               color="#50E3C2" 
+               shadow>
+        </a-box>
+
+        <a-box class="platform" 
+               position="105 8 0" 
+               width="15" height="0.1" depth="15" 
+               color="#F5A623" 
+               shadow>
+        </a-box>
+
+        <!-- 골 지점 -->
+        <a-box class="platform goal"
+               position="120 9 0"
+               width="20" height="0.1" depth="20"
+               color="#FFD700"
+               material="metalness: 0.8; roughness: 0.2"
+               shadow>
+          <a-entity
+            position="0 5 0"
+            text="value: GOAL!; align: center; width: 30; color: #FFD700">
+          </a-entity>
+          <a-entity position="0 2 0">
+            <a-cone position="0 2 0" radius-bottom="2" radius-top="0" height="4" color="#FFD700"></a-cone>
+            <a-sphere position="0 4 0" radius="1" color="#FFD700"></a-sphere>
+          </a-entity>
+        </a-box>
+
+        <!-- 장식용 요소들 -->
+        <a-entity class="decoration" position="25 8 0"
+                  geometry="primitive: octahedron; radius: 0.5"
+                  material="color: #FFD700; metalness: 0.8">
+        </a-entity>
+      </a-entity>
+
+      <!-- 시각적 효과를 위한 안개 -->
+      <a-entity fog="type: linear; color: #87CEEB; near: 10; far: 50"></a-entity>
+
+      <!-- 카메라 설정 -->
+      <a-entity id="camera-rig" third-person-camera>
+          <a-camera look-controls="true"
+                    wasd-controls-enabled="false"
+                    position="0 0 0">
+          </a-camera>
+      </a-entity>
+    </a-scene>
+
+    <style>
+      #inGameAlert {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        z-index: 1000;
+        min-width: 300px;
+      }
+
+      #inGameAlert h2 {
+        color: #FFD700;
+        margin-bottom: 15px;
+      }
+
+      #inGameAlert button {
+        background: #FFD700;
+        border: none;
+        padding: 10px 30px;
+        border-radius: 5px;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 15px;
+      }
+
+      #inGameAlert button:hover {
+        background: #FFC000;
+      }
+
+      #timerUI {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: white;
+        font-size: 24px;
+        font-family: Arial;
+        z-index: 1000;
+      }
+
+      #playerNameModal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+
+      #playerNameModal .modal-content {
+        background: #1a1a1a;
+        padding: 30px;
+        border-radius: 10px;
+        text-align: center;
+        width: 400px;
+        border: 1px solid #333;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      #playerNameModal h2 {
+        color: #fff;
+        font-size: 24px;
+        margin: 0;
+        font-family: Arial, sans-serif;
+      }
+
+      #playerNameInput {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #333;
+        border-radius: 5px;
+        background: #2a2a2a;
+        color: #fff;
+        font-size: 16px;
+        box-sizing: border-box;
+      }
+
+      #playerNameInput:focus {
+        outline: none;
+        border-color: #4a90e2;
+      }
+
+      #startGameBtn {
+        background: #4a90e2;
+        border: none;
+        padding: 10px 30px;
+        border-radius: 5px;
+        color: white;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+
+      #startGameBtn:hover {
+        background: #357abd;
+      }
+
+      .game-title {
+        color: #FFD700;
+        font-size: 36px;
+        margin-bottom: 40px;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        text-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+        font-family: 'Arial', sans-serif;
+        font-weight: bold;
+      }
+
+      .input-container {
+        position: relative;
+        margin: 20px 0;
+      }
+
+      .input-icon {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: rgba(255, 255, 255, 0.5);
+      }
+
+      .rankings-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #333;
+      }
+
+      .rankings-section h3 {
+        color: #4a90e2;
+        font-size: 18px;
+        margin: 0 0 15px 0;
+        text-align: left;
+      }
+
+      .rankings-list {
+        max-height: 200px;
+        overflow-y: auto;
+        background: #2a2a2a;
+        border-radius: 5px;
+        padding: 10px;
+      }
+
+      .rankings-list::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .rankings-list::-webkit-scrollbar-track {
+        background: #1a1a1a;
+        border-radius: 4px;
+      }
+
+      .rankings-list::-webkit-scrollbar-thumb {
+        background: #4a90e2;
+        border-radius: 4px;
+      }
+
+      .ranking-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        color: #fff;
+        border-bottom: 1px solid #333;
+        text-align: left;
+      }
+
+      .ranking-item:last-child {
+        border-bottom: none;
+      }
+
+      .ranking-position {
+        color: #4a90e2;
+        font-weight: bold;
+        margin-right: 10px;
+      }
+
+      .ranking-name {
+        flex: 1;
+        margin-right: 10px;
+      }
+
+      .ranking-time {
+        color: #ffd700;
+      }
+    </style>
+
+    <div id="inGameAlert">
+      <h2>SUCCESS!</h2>
+      <p id="clearTimeText"></p>
+      <button onclick="document.querySelector('[player-physics]').components['player-physics'].confirmReset()">Press OK to continue</button>
+    </div>
+
+    <div id="playerNameModal">
+      <div class="modal-content">
+        <h2>Enter Your Name</h2>
+        <div>
+          <input type="text" 
+                 id="playerNameInput" 
+                 placeholder="Your name"
+                 maxlength="15"
+                 autocomplete="off">
+        </div>
+        <button id="startGameBtn" onclick="startGame()">Start Game</button>
+        
+        <div class="rankings-section">
+          <h3>🏆 Top Players</h3>
+          <div class="rankings-list" id="modalRankingList">
+            <!-- 랭킹은 JavaScript로 동적 추가됨 -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      AFRAME.registerComponent('player-physics', {
+        init: function() {
+          this.speed = 0.15;
+          this.jumpForce = 0.4;
+          this.gravity = -0.015;
+          this.velocity = new THREE.Vector3();
+          this.moveVelocity = new THREE.Vector3();
+          this.isOnGround = true;
+          this.characterHeight = 1.5;
+          this.platformOffset = 1.5;
+          this.lastGroundY = 1.5;
+          this.hasReachedGoal = false;
+          
+          // 기존 타이머 제거 후 새로 생성
+          const existingTimer = document.getElementById('timerUI');
+          if (existingTimer) {
+            existingTimer.remove();
+          }
+          
+          // 타이머 UI 생성 (시작하지는 않음)
+          const timerUI = document.createElement('div');
+          timerUI.id = 'timerUI';
+          timerUI.textContent = 'Time: 0.00';
+          document.body.appendChild(timerUI);
+          
+          // 타이머 상태 초기화
+          this.isRunning = false;  // 처음에는 타이머 실행하지 않음
+          this.startTime = null;
+          this.elapsedTime = 0;
+          
+          // 키 입력 초기화
+          this.keys = {
+            w: false, a: false, s: false, d: false, space: false
+          };
+
+          // 애니메이션 초기화
+          this.currentAnimation = 'Stay1';
+          this.mixer = null;
+          this.actions = {};
+
+          // 모델 로드 이벤트 리스너 추가
+          this.el.addEventListener('model-loaded', () => {
+            const model = this.el.getObject3D('mesh');
+            this.mixer = new THREE.AnimationMixer(model);
+            this.animations = model.animations;
+            
+            // 모든 애니메이션 액션 생성
+            this.animations.forEach(animation => {
+              const action = this.mixer.clipAction(animation);
+              action.setLoop(THREE.LoopRepeat);
+              action.clampWhenFinished = true;
+              this.actions[animation.name] = action;
+            });
+            
+            // 초기 애니메이션 재생
+            this.playAnimation('Stay1');
+          });
+
+          // 키 이벤트 리스너
+          document.addEventListener('keydown', (event) => {
+            switch(event.key.toLowerCase()) {
+              case 'w': this.keys.w = true; break;
+              case 'a': this.keys.a = true; break;
+              case 's': this.keys.s = true; break;
+              case 'd': this.keys.d = true; break;
+              case ' ': 
+                if (this.isOnGround) {
+                  this.velocity.y = this.jumpForce;
+                  this.isOnGround = false;
+                  // 점프 애니메이션 설정
+                  this.setAnimation('Jump0');
+                }
+                break;
+            }
+          });
+
+          document.addEventListener('keyup', (event) => {
+            switch(event.key.toLowerCase()) {
+              case 'w': this.keys.w = false; break;
+              case 'a': this.keys.a = false; break;
+              case 's': this.keys.s = false; break;
+              case 'd': this.keys.d = false; break;
+            }
+          });
+        },
+
+        playAnimation: function(newAnim) {
+          if (this.currentAnimation === newAnim || !this.actions[newAnim]) return;
+          
+          // 이전 애니메이션 페이드아웃
+          if (this.actions[this.currentAnimation]) {
+            this.actions[this.currentAnimation].fadeOut(0.2);
+          }
+          
+          // 새 애니메이션 페이드인
+          this.actions[newAnim]
+            .reset()
+            .fadeIn(0.2)
+            .play();
+          
+          this.currentAnimation = newAnim;
+        },
+
+        tick: function(time, deltaTime) {
+          if (this.hasReachedGoal) return;
+
+          // 애니메이션 믹서 업데이트
+          if (this.mixer) {
+            this.mixer.update(deltaTime / 1000);
+          }
+
+          // 타이머가 실행 중일 때만 업데이트
+          if (this.isRunning && this.startTime !== null) {
+            this.elapsedTime = Date.now() - this.startTime;
+            const seconds = Math.floor(this.elapsedTime / 1000);
+            const milliseconds = Math.floor((this.elapsedTime % 1000) / 10);
+            document.getElementById('timerUI').textContent = 
+                `Time: ${seconds}.${milliseconds.toString().padStart(2, '0')}`;
+          }
+
+          const position = this.el.getAttribute('position');
+          const platforms = document.querySelectorAll('.platform');
+          
+          const previousY = position.y;
+          
+          const camera = document.querySelector('a-camera');
+          const cameraRotation = camera.getAttribute('rotation');
+          const rotationY = THREE.MathUtils.degToRad(cameraRotation.y);
+          
+          let moveX = 0;
+          let moveZ = 0;
+          
+          if (this.keys.w) moveX -= Math.sin(rotationY), moveZ -= Math.cos(rotationY);
+          if (this.keys.s) moveX += Math.sin(rotationY), moveZ += Math.cos(rotationY);
+          if (this.keys.a) moveX -= Math.cos(rotationY), moveZ += Math.sin(rotationY);
+          if (this.keys.d) moveX += Math.cos(rotationY), moveZ -= Math.sin(rotationY);
+          
+          if (moveX !== 0 || moveZ !== 0) {
+            const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
+            this.moveVelocity.x = (moveX / length) * this.speed;
+            this.moveVelocity.z = (moveZ / length) * this.speed;
+          } else {
+            this.moveVelocity.x = 0;
+            this.moveVelocity.z = 0;
+          }
+          
+          position.x += this.moveVelocity.x;
+          position.z += this.moveVelocity.z;
+          
+          if (!this.isOnGround) {
+            this.velocity.y += this.gravity;
+            position.y += this.velocity.y;
+          } else {
+            position.y = this.lastGroundY;
+            this.velocity.y = 0;
+          }
+          
+          let isOnAnyPlatform = false;
+          let maxY = -Infinity;
+
+          platforms.forEach((platform) => {
+            const platformPos = platform.getAttribute('position');
+            const platformScale = platform.getAttribute('geometry');
+            const halfWidth = platformScale.width / 2;
+            const halfDepth = platformScale.depth / 2;
+
+            if (Math.abs(position.x - platformPos.x) < halfWidth &&
+                Math.abs(position.z - platformPos.z) < halfDepth &&
+                Math.abs(position.y - (platformPos.y + this.characterHeight)) < 0.2 &&
+                this.velocity.y <= 0) {
+              
+              isOnAnyPlatform = true;
+              maxY = Math.max(maxY, platformPos.y + this.characterHeight);
+
+              if (platform.classList.contains('goal') && !this.hasReachedGoal) {
+                this.showGoalMessage();
+                return;
+              }
+            }
+          });
+
+          if (isOnAnyPlatform) {
+            position.y = maxY;
+            this.velocity.y = 0;
+            this.isOnGround = true;
+            this.lastGroundY = position.y;
+          } else {
+            this.isOnGround = false;
+          }
+
+          // 낙하 감지 개선
+          if (position.y < -10) {  // 낙하 감지 높이를 -10으로 설정
+            this.resetPosition();
+            this.velocity.set(0, 0, 0);  // 속도 완전 초기화
+            this.moveVelocity.set(0, 0, 0);
+            this.isOnGround = true;
+            
+            // 키 입력 초기화
+            this.keys = {
+              w: false,
+              a: false,
+              s: false,
+              d: false,
+              space: false
+            };
+            
+            return;
+          }
+
+          // 애니메이션 상태 업데이트
+          if (!this.isOnGround) {
+            this.playAnimation('Jump0');
+          } else if (this.moveVelocity.x !== 0 || this.moveVelocity.z !== 0) {
+            this.playAnimation('Run0');
+          } else {
+            this.playAnimation('Stay1');
+          }
+
+          this.el.setAttribute('position', position);
+          
+          if (this.moveVelocity.x !== 0 || this.moveVelocity.z !== 0) {
+            const angle = Math.atan2(this.moveVelocity.x, this.moveVelocity.z);
+            this.el.setAttribute('rotation', {
+              x: 0,
+              y: THREE.MathUtils.radToDeg(angle),
+              z: 0
+            });
+          }
+        },
+
+        showGoalMessage: function() {
+          if (this.hasReachedGoal) return;
+          
+          this.hasReachedGoal = true;
+          this.isRunning = false;
+          
+          const clearTime = this.elapsedTime;
+          
+          // 서버에 기록 저장
+          fetch(`/api/players/${currentPlayerId}`, {
+              method: 'PUT',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ clearTime: clearTime })
+          })
+          .then(() => updateRankings())
+          .catch(error => console.error('Error:', error));
+          
+          const seconds = Math.floor(clearTime / 1000);
+          const milliseconds = Math.floor((clearTime % 1000) / 10);
+          
+          const inGameAlert = document.getElementById('inGameAlert');
+          const clearTimeText = document.getElementById('clearTimeText');
+          clearTimeText.textContent = `Completion Time: ${seconds}.${milliseconds.toString().padStart(2, '0')} seconds`;
+          inGameAlert.style.display = 'block';
+        },
+
+        resetPosition: function() {
+          this.el.setAttribute('position', {x: 0, y: 2.5, z: 0});
+          this.el.setAttribute('rotation', {x: 0, y: 0, z: 0});
+          
+          this.velocity.set(0, 0, 0);
+          this.moveVelocity.set(0, 0, 0);
+          this.isOnGround = false;
+          this.lastGroundY = 1.5;
+          
+          // 키 입력 초기화
+          this.keys = {
+              w: false,
+              a: false,
+              s: false,
+              d: false,
+              space: false
+          };
+        },
+
+        handleGoalReached: function() {
+          if (this.hasReachedGoal) return;
+          
+          this.hasReachedGoal = true;
+          this.isRunning = false;
+          
+          const seconds = Math.floor(this.elapsedTime / 1000);
+          const milliseconds = Math.floor((this.elapsedTime % 1000) / 10);
+          
+          const inGameAlert = document.getElementById('inGameAlert');
+          const clearTimeText = document.getElementById('clearTimeText');
+          clearTimeText.textContent = `Completion Time: ${seconds}.${milliseconds.toString().padStart(2, '0')} seconds`;
+          inGameAlert.style.display = 'block';
+        },
+
+        confirmReset: function() {
+          document.getElementById('inGameAlert').style.display = 'none';
+          
+          // 모든 상태 초기화
+          this.resetPosition();
+          this.hasReachedGoal = false;
+          this.isRunning = false;
+          this.startTime = null;
+          this.elapsedTime = 0;
+          
+          // 타이머 UI 리셋
+          document.getElementById('timerUI').textContent = 'Time: 0.00';
+          
+          // 이름 입력 모달 다시 표시
+          document.getElementById('playerNameModal').style.display = 'flex';
+          
+          // 입력 필드 초기화 및 포커스
+          const nameInput = document.getElementById('playerNameInput');
+          nameInput.value = '';
+          nameInput.focus();
+          
+          // currentPlayerId 초기화
+          currentPlayerId = null;
+        },
+
+        startTimer: function() {
+          this.startTime = Date.now();
+          this.isRunning = true;
+          this.elapsedTime = 0;
+        }
+      });
+
+      AFRAME.registerComponent('third-person-camera', {
+        init: function() {
+          this.targetEl = document.querySelector('#player');
+          this.cameraEl = this.el.querySelector('a-camera');
+          
+          this.distance = 3;
+          this.height = 2;
+          this.smoothFactor = 0.1;
+        },
+        
+        tick: function() {
+          if (!this.targetEl) return;
+          
+          const targetPosition = this.targetEl.getAttribute('position');
+          const cameraRotation = this.cameraEl.getAttribute('rotation');
+          
+          const angle = THREE.MathUtils.degToRad(cameraRotation.y);
+          const offsetX = Math.sin(angle) * this.distance;
+          const offsetZ = Math.cos(angle) * this.distance;
+          
+          const targetCameraPos = {
+            x: targetPosition.x + offsetX,
+            y: targetPosition.y + this.height,
+            z: targetPosition.z + offsetZ
+          };
+          
+          const currentPos = this.el.getAttribute('position');
+          
+          const newPos = {
+            x: currentPos.x + (targetCameraPos.x - currentPos.x) * this.smoothFactor,
+            y: currentPos.y + (targetCameraPos.y - currentPos.y) * this.smoothFactor,
+            z: currentPos.z + (targetCameraPos.z - currentPos.z) * this.smoothFactor
+          };
+          
+          this.el.setAttribute('position', newPos);
+        }
+      });
+
+      AFRAME.registerComponent('model-loaded', {
+        init: function() {
+          this.el.addEventListener('model-loaded', (e) => {
+            console.log('캐릭터 모델 로딩 완료!');
+            
+            // 모델 로드 완료 후 초기 애니메이션 설정
+            this.el.setAttribute('animation-mixer', {
+              clip: 'Stay1',
+              loop: 'repeat'
+            });
+          });
+        }
+      });
+
+      AFRAME.registerSystem('physics', {
+        init: function() {
+          this.el.setAttribute('physics', {
+            gravity: -9.8,
+            debug: true
+          });
+        }
+      });
+
+      AFRAME.registerComponent('ball-controls', {
+        init: function() {
+          this.speed = 0.15;
+          this.jumpForce = 5;
+          this.canJump = true;
+          
+          this.el.addEventListener('collide', (e) => {
+            if (e.detail.body.el.classList.contains('solid')) {
+              this.canJump = true;
+            }
+          });
+        },
+        
+        tick: function() {
+          if (!this.el.body) return;
+          
+          const currentPosition = this.el.getAttribute('position');
+          
+          if (currentPosition.y < -5) {
+            this.resetPosition();
+            alert('추락했습니다! 처음부터 다시 시작합니다.');
+            return;
+          }
+          
+          const rotation = this.el.sceneEl.camera.el.getAttribute('rotation');
+          const rotationY = THREE.MathUtils.degToRad(rotation.y);
+          
+          let moveX = 0;
+          let moveZ = 0;
+          
+          if (this.keys.ArrowUp) {
+            moveX -= Math.sin(rotationY);
+            moveZ -= Math.cos(rotationY);
+          }
+          if (this.keys.ArrowDown) {
+            moveX += Math.sin(rotationY);
+            moveZ += Math.cos(rotationY);
+          }
+          if (this.keys.ArrowLeft) {
+            moveX -= Math.cos(rotationY);
+            moveZ += Math.sin(rotationY);
+          }
+          if (this.keys.ArrowRight) {
+            moveX += Math.cos(rotationY);
+            moveZ -= Math.sin(rotationY);
+          }
+          
+          if (moveX !== 0 || moveZ !== 0) {
+            const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
+            moveX = (moveX / length) * this.speed;
+            moveZ = (moveZ / length) * this.speed;
+            
+            this.el.body.velocity.x = moveX * 10;
+            this.el.body.velocity.z = moveZ * 10;
+          } else {
+            this.el.body.velocity.x *= 0.95;
+            this.el.body.velocity.z *= 0.95;
+          }
+          
+          if (this.keys.Space && this.canJump) {
+            this.el.body.velocity.y = this.jumpForce;
+            this.canJump = false;
+          }
+        },
+        
+        resetPosition: function() {
+          this.el.setAttribute('position', {x: 0, y: 1.5, z: 0});
+          this.el.setAttribute('rotation', {x: 0, y: 0, z: 0});
+          if (this.el.body) {
+            this.el.body.velocity.set(0, 0, 0);
+            this.el.body.angularVelocity.set(0, 0, 0);
+          }
+          this.canJump = true;
+        }
+      });
+
+      AFRAME.registerComponent('collision-detection', {
+        init: function() {
+          this.isColliding = false;
+          this.lastValidPosition = this.el.getAttribute('position');
+          this.escaped = false;
+        },
+        
+        tick: function() {
+          const currentPosition = this.el.getAttribute('position');
+          const walls = document.querySelectorAll('#maze a-box');
+          const exit = document.querySelector('#exit');
+          let collision = false;
+          
+          for (let wall of walls) {
+            const wallPos = wall.getAttribute('position');
+            const wallWidth = wall.getAttribute('width');
+            const wallHeight = wall.getAttribute('height');
+            const wallDepth = wall.getAttribute('depth');
+            
+            if (this.checkCollision(currentPosition, wallPos, wallWidth, wallDepth)) {
+              const ballBottom = currentPosition.y - 0.5;
+              const wallTop = wallPos.y + wallHeight/2;
+              
+              if (Math.abs(ballBottom - wallTop) < 0.2 && this.el.components['ball-controls'].velocity <= 0) {
+                currentPosition.y = wallTop + 0.5;
+                this.el.setAttribute('position', currentPosition);
+                this.lastValidPosition = {...currentPosition};
+                this.el.components['ball-controls'].velocity = 0;
+                this.el.components['ball-controls'].canJump = true;
+                return;
+              }
+              
+              collision = true;
+              break;
+            }
+          }
+          
+          if (collision) {
+            const moveBack = {
+              x: (this.lastValidPosition.x - currentPosition.x) * 0.5,
+              y: currentPosition.y,
+              z: (this.lastValidPosition.z - currentPosition.z) * 0.5
+            };
+            this.el.setAttribute('position', {
+              x: currentPosition.x + moveBack.x,
+              y: moveBack.y,
+              z: currentPosition.z + moveBack.z
+            });
+          } else {
+            this.lastValidPosition = {...currentPosition};
+          }
+          
+          if (!this.escaped && this.checkCollision(currentPosition, exit.getAttribute('position'), 2, 2)) {
+            this.onExit();
+          }
+        },
+        
+        checkCollision: function(ballPos, objPos, width, depth) {
+          const ballRadius = 0.5;
+          return (
+            ballPos.x + ballRadius > objPos.x - width/2 &&
+            ballPos.x - ballRadius < objPos.x + width/2 &&
+            ballPos.z + ballRadius > objPos.z - depth/2 &&
+            ballPos.z - ballRadius < objPos.z + depth/2
+          );
+        },
+        
+        onExit: function() {
+          alert('Success Escape!');
+          this.escaped = true;
+        }
+      });
+
+      document.querySelector('a-scene').setAttribute('physics', {
+        driver: 'local',
+        gravity: { x: 0, y: -9.8, z: 0 },
+        debug: true,
+        iterations: 20
+      });
+
+      // 파티클 시스템 활성화
+      AFRAME.registerComponent('particle-system', {
+        schema: {
+          preset: {default: 'dust'},
+          particleCount: {default: 100},
+          color: {default: '#FFD700'}
+        }
+      });
+
+      AFRAME.registerComponent('character-movement', {
+        init: function () {
+          this.speed = 0.2;
+          this.jumpForce = 0.6;    // 점프력 증가
+          this.gravity = 0.015;
+          this.velocity = new THREE.Vector3();
+          this.moveVelocity = new THREE.Vector3();
+          this.isOnGround = true;
+          this.lastValidPosition = new THREE.Vector3();
+          
+          // 키보드 상태
+          this.keys = {
+            w: false,
+            s: false,
+            a: false,
+            d: false,
+            ' ': false
+          };
+
+          // ... 나머지 초기화 코드 ...
+        },
+
+        tick: function() {
+          const position = this.el.object3D.position;
+          const rotation = this.el.object3D.rotation;
+          
+          // 현재 위치 저장
+          this.lastValidPosition.copy(position);
+          
+          // 이동 처리
+          this.moveVelocity.set(0, 0, 0);
+          if (this.keys.w) this.moveVelocity.z = -this.speed;
+          if (this.keys.s) this.moveVelocity.z = this.speed;
+          if (this.keys.a) this.moveVelocity.x = -this.speed;
+          if (this.keys.d) this.moveVelocity.x = this.speed;
+
+          this.moveVelocity.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotation.y);
+          
+          // 점프 처리
+          if (this.keys[' '] && this.isOnGround) {
+            this.velocity.y = this.jumpForce;
+            this.isOnGround = false;
+          }
+
+          // 중력 적용
+          if (!this.isOnGround) {
+            this.velocity.y -= this.gravity;
+          }
+
+          // 위치 업데이트
+          position.x += this.moveVelocity.x;
+          position.z += this.moveVelocity.z;
+          position.y += this.velocity.y;
+
+          // 개선된 발판 충돌 검사
+          let isOnAnyPlatform = false;
+          let maxY = -Infinity;
+          const platforms = document.querySelectorAll('.platform');
+          const collisionThreshold = 2.0;
+          const horizontalMargin = 1.2;
+
+          platforms.forEach(platform => {
+            const platformPos = platform.getAttribute('position');
+            const platformScale = platform.getAttribute('geometry');
+            
+            const halfWidth = (platformScale.width / 2) + horizontalMargin;
+            const halfDepth = (platformScale.depth / 2) + horizontalMargin;
+
+            const dx = Math.abs(position.x - platformPos.x);
+            const dz = Math.abs(position.z - platformPos.z);
+            const dy = position.y - platformPos.y;
+
+            if (dx < halfWidth && 
+                dz < halfDepth) {
+              
+              // 수직 충돌 검사 개선
+              if (dy < collisionThreshold && dy > -0.5) {
+                if (this.velocity.y <= 0) {  // 하강 중일 때만 착지
+                  isOnAnyPlatform = true;
+                  const platformTop = platformPos.y + 1;
+                  maxY = Math.max(maxY, platformTop);
+                  
+                  // 착지 시 속도 초기화
+                  this.velocity.y = 0;
+                }
+              }
+            }
+          });
+
+          // 착지 처리 개선
+          if (isOnAnyPlatform) {
+            position.y = maxY;
+            this.isOnGround = true;
+          } else {
+            this.isOnGround = false;
+          }
+
+          // 낙하 감지 및 리셋
+          if (position.y < -20) {
+            position.set(0, 2, 0);
+            this.velocity.set(0, 0, 0);
+            this.isOnGround = true;
+          }
+
+          // 속도 제한
+          this.velocity.y = Math.max(this.velocity.y, -0.5);  // 최대 낙하 속도 제한
+        }
+      });
+
+      let currentPlayerId = null;
+
+      async function startGame() {
+          const playerName = document.getElementById('playerNameInput').value;
+          if (!playerName) {
+              alert('Please enter your name!');
+              return;
+          }
+
+          try {
+              const response = await fetch('/api/players', {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json'
+                  },
+                  body: JSON.stringify({ name: playerName })
+              });
+
+              if (!response.ok) {
+                  const errorData = await response.json();
+                  throw new Error(errorData.error || 'Failed to create player');
+              }
+
+              const player = await response.json();
+              currentPlayerId = player._id;
+              
+              // 모달 숨기기
+              document.getElementById('playerNameModal').style.display = 'none';
+              
+              // 타이머 시작
+              const playerPhysics = document.querySelector('[player-physics]').components['player-physics'];
+              playerPhysics.startTimer();
+              
+              updateRankings();
+          } catch (error) {
+              console.error('Error creating player:', error);
+              alert('Failed to start game: ' + error.message);
+          }
+      }
+
+      async function updateRankings() {
+          try {
+              const response = await fetch('/api/rankings');
+              const rankings = await response.json();
+              
+              // 모달 내의 랭킹 리스트만 업데이트
+              const modalRankingList = document.getElementById('modalRankingList');
+              modalRankingList.innerHTML = rankings.map((player, index) => `
+                  <div class="ranking-item">
+                      <span class="ranking-position">#${index + 1}</span>
+                      <span class="ranking-name">${player.name}</span>
+                      <span class="ranking-time">${(player.clearTime / 1000).toFixed(2)}s</span>
+                  </div>
+              `).join('');
+          } catch (error) {
+              console.error('Error:', error);
+          }
+      }
+
+      // 페이지 로드 시 랭킹 업데이트
+      document.addEventListener('DOMContentLoaded', updateRankings);
+
+      // 입력 필드에서 Enter 키 처리
+      document.getElementById('playerNameInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          startGame();
+        }
+      });
+
+      // 입력 필드 자동 포커스
+      document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('playerNameInput').focus();
+      });
+
+      // 디버깅을 위한 스크립트
+      document.addEventListener('DOMContentLoaded', function() {
+        // GLTF 모델 로드 확인
+        const skyBackground = document.querySelector('#sky-background');
+        skyBackground.addEventListener('model-loaded', function(e) {
+          console.log('Sky model loaded successfully');
+          
+          // 모델 로드 후 추가 설정
+          skyBackground.setAttribute('material', {
+              side: 'back',
+              shader: 'standard',
+              metalness: 0,
+              roughness: 1
+          });
+          
+          // 크기와 위치 미세 조정
+          setTimeout(() => {
+              skyBackground.setAttribute('scale', '10000 10000 10000');
+              skyBackground.setAttribute('position', '0 0 0');
+              console.log('Sky model adjusted');
+          }, 100);
+        });
+
+        skyBackground.addEventListener('model-error', function(e) {
+          console.error('Error loading sky model:', e);
+          // 에러 발생 시 임시 하늘 표시
+          document.querySelector('a-sky').setAttribute('visible', 'true');
+        });
+
+        // 텍스처 로드 확인
+        const skyTexture = document.querySelector('#sky-texture');
+        skyTexture.addEventListener('loaded', function() {
+          console.log('Sky texture loaded successfully');
+        });
+
+        skyTexture.addEventListener('error', function(e) {
+          console.error('Error loading sky texture:', e);
+        });
+      });
+    </script>
+  </body>
+</html>
