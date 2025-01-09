@@ -38,29 +38,35 @@
         <!-- The debug:true option creates a wireframe around each physics body. If you don't see a wireframe,
              the physics system may be unable to parse your model without a shape:box or shape:hull option. -->
         <a-scene physics>
-
-          <!-- Camera -->
-          <a-entity id="rig"
-            position="0 1.6 10"
-            rotation="0 0 0"
-            >
-            <a-camera></a-camera>            
-          </a-entity>
+            
+            <a-assets>
+                <a-asset-item id="boss" src="/aframe/avatars/theboss/theboss.gltf"></a-asset-item>
+            </a-assets>
+              <!-- Camera -->
+              <a-entity id="rig"
+                position="0 0 0"
+                rotation="0 0 0"
+                >
+                <a-camera></a-camera>            
+              </a-entity>
           
-
           <!-- Floor -->
-          <a-plane static-body></a-plane>
-
-          <!-- Immovable box -->
-          <a-box static-body position="0 0.5 -5" width="3" height="1" depth="1"></a-box>
+          <a-plane static-body
+            position="0 0 0" rotation="-90 0 0"
+            color="#7BC8A4" width="10" height="10"
+            ></a-plane>
 
           <!-- Dynamic box -->
-          <a-box 
-            dynamic-body 
-            body="shape:box"
-            position="5 2.5 0" width="1" height="1" depth="1" 
+          <a-cylinder
+            dynamic-body
+            position="0 1.7 -1"
+            radius="0.3"
+            height="1.7"
+            gltf-model="#boss" 
+            scale="0.01 0.01 0.01"
+            light="type: ambient; intensity: 2"
             >
-          </a-box>
+          </a-cylinder>
 
         </a-scene>
             <!-- End scene    -->    
