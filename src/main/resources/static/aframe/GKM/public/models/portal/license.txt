@@ -1,0 +1,11 @@
+Model Information:
+* title:	Sci-Fi portal - Asset
+* source:	https://sketchfab.com/3d-models/sci-fi-portal-asset-6a991ae1eb75407d8a4848e1aecc4b14
+* author:	Samuel Francis Johnson (Oneironauticus) (https://sketchfab.com/oneironauticus)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Sci-Fi portal - Asset" (https://sketchfab.com/3d-models/sci-fi-portal-asset-6a991ae1eb75407d8a4848e1aecc4b14) by Samuel Francis Johnson (Oneironauticus) (https://sketchfab.com/oneironauticus) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
