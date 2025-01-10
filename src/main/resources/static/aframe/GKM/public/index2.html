@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escape Room</title>
+
+    <!-- A-Frame 및 컴포넌트 스크립트 -->
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://unpkg.com/aframe-environment-component@1.3.2/dist/aframe-environment-component.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@4.2.2/dist/aframe-physics-system.min.js"></script>
+    
+    <!-- 캐릭터 움직임 컨트롤 스크립트 수정 -->
+    <script>
+      let gameStarted = false; // 게임 시작 상태를 추적하는 변수 추가
+      
+      AFRAME.registerComponent('character-movement', {
+        init: function () {
+          this.model = this.el;
+          this.speed = 0.2;
+          this.moveVector = new THREE.Vector3();
+          
+          // 마우스 이벤트를 위한 변수들
+          this.isMouseDown = false;
+          this.previousMouseX = 0;
+          this.previousMouseY = 0;
+          this.mouseSensitivity = 0.002;
+          this.rotationX = 0; // 상하 회전을 위한 변수 추가
+          
+          // 점프 관련 변수 추가
+          this.isJumping = false;
+          this.jumpVelocity = 0;
+          this.jumpSpeed = 0.2;
+          this.gravity = 0.006;
+          this.groundLevel = 0;
+          
+          // 키보드 상태 추적에 스페이스바 추가
+          this.keys = {
+            w: false,
+            s: false,
+            a: false,
+            d: false,
+            ' ': false  // 스페이스 바
+          };
+          
+          // 키보드 이벤트
+          document.addEventListener('keydown', (e) => {
+            console.log('Line 49: 여기서 this 는 ', this);
+            console.log('이벤트가 발생된 타겟은 ', e.target);
+            if (this.keys.hasOwnProperty(e.key.toLowerCase())) {
+              this.keys[e.key.toLowerCase()] = true;
+            }
+          });
+          
+          document.addEventListener('keyup', (e) => {
+            if (this.keys.hasOwnProperty(e.key.toLowerCase())) {
+              this.keys[e.key.toLowerCase()] = false;
+            }
+          });
+          
+          // 마우스 이벤트
+          document.addEventListener('mousedown', (e) => {
+            this.isMouseDown = true;
+            this.previousMouseX = e.clientX;
+            this.previousMouseY = e.clientY;
+            console.log('mousedown ', this);
+          });
+          
+          document.addEventListener('mouseup', () => {
+            this.isMouseDown = false;
+          });
+          
+          document.addEventListener('mousemove', (e) => {
+            if (this.isMouseDown) {
+              const deltaX = e.clientX - this.previousMouseX;
+              const deltaY = e.clientY - this.previousMouseY;
+              
+              // 좌릭터 자체를 회전
+              this.model.object3D.rotation.y -= deltaX * this.mouseSensitivity;
+              
+              // 상하 시점은 카메라에만 적용
+              this.rotationX -= deltaY * this.mouseSensitivity;
+              this.rotationX = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, this.rotationX));
+              const camera = document.querySelector('#camera');
+              if (camera) {
+                camera.object3D.rotation.x = this.rotationX;
+              }
+              
+              this.previousMouseX = e.clientX;
+              this.previousMouseY = e.clientY;
+            }
+          });
+          
+          // 애니메이션 상태 추가
+          this.currentAnimation = 'Idle0';
+          this.model.addEventListener('model-loaded', () => {
+            this.mixer = new THREE.AnimationMixer(this.model.object3D);
+            this.animations = this.model.getObject3D('mesh').animations;
+            this.actions = {};
+            
+            // 모든 애니메이션 액션 생성
+            this.animations.forEach(animation => {
+              this.actions[animation.name] = this.mixer.clipAction(animation);
+            });
+            
+            // 초기 Idle 애니메이션 시작
+            this.playAnimation('Idle0');
+          });
+          
+          this.rotationSpeed = 2; // 회전 속도
+        },
+        
+        playAnimation: function(newAnim) {
+          if (this.currentAnimation === newAnim) return;
+          
+          // 이전 애니메이션 페이드아웃
+          if (this.actions[this.currentAnimation]) {
+            this.actions[this.currentAnimation].fadeOut(0.2);
+          }
+          
+          // 새 애니메이션 페이드인
+          if (this.actions[newAnim]) {
+            this.actions[newAnim].reset().fadeIn(0.2).play();
+            this.currentAnimation = newAnim;
+          }
+        },
+        
+        tick: function(time, deltaTime) {
+          // 일시정지 상태 확인
+          if (this.el.sceneEl.components['game-manager'].isPaused) {
+            return;
+          }
+          // 이동 방향 계산
+          this.moveVector.set(0, 0, 0);
+          
+          // 카메라의 회전값 가져오기
+          const camera = document.querySelector('#camera');
+          const cameraRotation = camera.object3D.rotation.y;
+          
+          // 전진/후진 (부호 변경)
+          if (this.keys.w) this.moveVector.z = -this.speed;   // 전진
+          if (this.keys.s) this.moveVector.z = this.speed;    // 후진
+          // 좌우 이동
+          if (this.keys.a) this.moveVector.x = -this.speed;   // 왼쪽
+          if (this.keys.d) this.moveVector.x = this.speed;    // 오른쪽
+          
+          // 카메라 방향을 기준으로 이동 벡터 회전
+          const rotationMatrix = new THREE.Matrix4();
+          rotationMatrix.makeRotationY(cameraRotation);
+          this.moveVector.applyMatrix4(rotationMatrix);
+          
+          // 점프 처리
+          if (this.keys[' '] && !this.isJumping) {
+            this.isJumping = true;
+            this.jumpVelocity = this.jumpSpeed;
+          }
+          
+          if (this.isJumping) {
+            this.model.object3D.position.y += this.jumpVelocity;
+            this.jumpVelocity -= this.gravity;
+            
+            if (this.model.object3D.position.y <= this.groundLevel) {
+              this.model.object3D.position.y = this.groundLevel;
+              this.isJumping = false;
+              this.jumpVelocity = 0;
+            }
+          }
+          
+          // 이동 적용
+          this.model.object3D.position.x += this.moveVector.x;
+          this.model.object3D.position.z += this.moveVector.z;
+          
+          // 이동 방향으로 캐릭터 회전
+          if (Math.abs(this.moveVector.x) > 0.001 || Math.abs(this.moveVector.z) > 0.001) {
+            const angle = Math.atan2(this.moveVector.x, this.moveVector.z);
+            this.model.object3D.rotation.y = angle;
+          }
+          
+          // 애니메이션 업데이트
+          if (this.mixer) {
+            this.mixer.update(deltaTime / 1000);
+            
+            if (this.isJumping) {
+              this.playAnimation('Jumping0');
+            } else if (Math.abs(this.moveVector.x) > 0.01 || Math.abs(this.moveVector.z) > 0.01) {
+              this.playAnimation('Walking0');
+            } else {
+              this.playAnimation('Idle0');
+            }
+          }
+        }
+      });
+    </script>
+
+    <!-- 카메라 팔로우 스크립트 수정 -->
+    <script>
+      AFRAME.registerComponent('unreal-camera-control', {
+        schema: {
+          target: { type: 'selector' },
+          distance: { type: 'number', default: 5 },
+          height: { type: 'number', default: 3.5 },
+          rotationSpeed: { type: 'number', default: 0.002 },
+          smoothFactor: { type: 'number', default: 0.1 },
+          tiltAngle: { type: 'number', default: 10 }
+        },
+
+        init: function() {
+          this.currentRotation = new THREE.Euler();
+          this.targetRotation = new THREE.Euler();
+          this.mouseX = 0;
+          this.mouseY = 0;
+          this.targetPosition = new THREE.Vector3();
+          this.currentPosition = new THREE.Vector3();
+          this.isMouseDown = false;
+          
+          // 마우스 이벤트 리스너 수정
+          document.addEventListener('mousedown', (e) => {
+            if (e.button === 2) { // 오른쪽 마우스 버튼
+              this.isMouseDown = true;
+              this.mouseX = e.clientX;
+              this.mouseY = e.clientY;
+            }
+            console.log('mousedown ', this);
+          });
+          
+          document.addEventListener('mouseup', (e) => {
+            if (e.button === 2) { // 오른쪽 마우스 버튼
+              this.isMouseDown = false;
+            }
+          });
+          
+          document.addEventListener('mousemove', (e) => {
+            if (this.isMouseDown) {
+              const deltaX = e.clientX - this.mouseX;
+              
+              // deltaX의 부호를 반대로 변경
+              this.targetRotation.y -= deltaX * this.data.rotationSpeed;
+              
+              this.mouseX = e.clientX;
+              this.mouseY = e.clientY;
+            }
+          });
+          
+          // 오른쪽 클릭 메뉴 방지는 유지
+          document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+          });
+        },
+
+        tick: function() {
+          if (!this.data.target) return;
+          
+          // 부드러운 카메라 회전 (좌우만)
+          this.currentRotation.y += (this.targetRotation.y - this.currentRotation.y) * this.data.smoothFactor;
+          
+          // 타겟 위치 가져오기
+          this.data.target.object3D.getWorldPosition(this.targetPosition);
+          
+          // 카메라 위치 계산
+          const offset = new THREE.Vector3(
+            0,
+            this.data.height,
+            -this.data.distance
+          );
+          
+          // 회전 적용 (좌우만)
+          offset.applyEuler(new THREE.Euler(0, this.currentRotation.y, 0));
+          
+          // 부드러운 카메라 이동
+          this.currentPosition.x += (this.targetPosition.x + offset.x - this.currentPosition.x) * this.data.smoothFactor;
+          this.currentPosition.y += (this.targetPosition.y + offset.y - this.currentPosition.y) * this.data.smoothFactor;
+          this.currentPosition.z += (this.targetPosition.z + offset.z - this.currentPosition.z) * this.data.smoothFactor;
+          
+          // 카메라 위치와 회전 업데이트 (좌우 회전 + 고정된 하향 각도)
+          this.el.object3D.position.copy(this.currentPosition);
+          this.el.object3D.rotation.set(
+            THREE.MathUtils.degToRad(this.data.tiltAngle), // X축 회전 (하향)
+            this.currentRotation.y + Math.PI,  // Y축 회전
+            0  // Z축 회전
+          );
+        }
+      });
+    </script>
+
+    <!-- 게임 상태 관리 컴포넌트 -->
+    <script>
+      AFRAME.registerComponent('game-manager', {
+        init: function() {
+          this.isGameOver = false;
+          this.isGameStarted = false;
+          this.playerName = '';
+          this.zombieCount = 0;
+          
+          // 시작 화면 생성
+          this.createStartScreen();
+          
+          // 게임 UI 컨테이너 생성
+          this.uiContainer = document.createElement('div');
+          this.uiContainer.style.cssText = `
+              position: fixed;
+              top: 20px;
+              left: 20px;
+              color: white;
+              font-family: 'Arial', sans-serif;
+              font-size: 20px;
+              display: none;
+              background: rgba(0, 0, 0, 0.5);
+              padding: 15px 20px;
+              border-radius: 10px;
+              backdrop-filter: blur(5px);
+              box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+          `;
+          
+          // 타이머 엘리먼트
+          this.timerEl = document.createElement('div');
+          this.timerEl.style.cssText = `
+              margin-bottom: 8px;
+              display: flex;
+              align-items: center;
+          `;
+          this.timerEl.innerHTML = `
+              <span style="color: #4CAF50;">⏱</span>
+              <span style="margin-left: 8px;">생존 시간: 0초</span>
+          `;
+          
+          // 좀비 카운터 엘리먼트
+          this.zombieCounterEl = document.createElement('div');
+          this.zombieCounterEl.style.cssText = `
+              display: flex;
+              align-items: center;
+          `;
+          this.zombieCounterEl.innerHTML = `
+              <span style="color: #ff4444;">🧟</span>
+              <span style="margin-left: 8px;">좀비: 0마리</span>
+          `;
+          
+          // UI 요소들을 컨테이너에 추가
+          this.uiContainer.appendChild(this.timerEl);
+          this.uiContainer.appendChild(this.zombieCounterEl);
+          document.body.appendChild(this.uiContainer);
+
+          // 좀비 생성 이벤트 리스너
+          this.el.addEventListener('zombieSpawned', () => {
+              this.zombieCount++;
+          });
+
+          this.isPaused = false;
+          
+          // 일시정지 UI 생성
+          this.createPauseScreen();
+          
+          // ESC 키 이벤트 리스너 추가
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isGameStarted && !this.isGameOver) {
+              this.togglePause();
+            }
+          });
+        },
+
+        createStartScreen: function() {
+          const startScreen = document.createElement('div');
+          startScreen.id = 'startScreen';
+          startScreen.style.position = 'fixed';
+          startScreen.style.top = '0';
+          startScreen.style.left = '0';
+          startScreen.style.width = '100%';
+          startScreen.style.height = '100%';
+          startScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+          startScreen.style.display = 'flex';
+          startScreen.style.flexDirection = 'column';
+          startScreen.style.justifyContent = 'center';
+          startScreen.style.alignItems = 'center';
+          startScreen.style.zIndex = '1000';
+
+          startScreen.innerHTML = `
+            <h1 style="color: white; font-size: 3em; margin-bottom: 1em;">좀비 탈출 게임</h1>
+            <div style="margin: 2em 0;">
+              <input type="text" id="playerName" placeholder="플레이어 이름을 입력하세요" 
+                     style="padding: 0.5em; font-size: 1.2em; margin-right: 1em;">
+              <button id="startButton" 
+                      style="padding: 0.5em 1em; font-size: 1.2em; background: #4CAF50; color: white; border: none; cursor: pointer;">
+                게임 시작
+              </button>
+            </div>
+            <div style="color: white; text-align: center; margin-top: 2em;">
+              <h2>최고 기록 TOP 3</h2>
+              <div style="
+                max-height: 400px;
+                overflow-y: auto;
+                padding: 1em;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 10px;
+                min-width: 300px;
+              ">
+                <ul id="leaderboardList" style="
+                  list-style: none;
+                  padding: 0;
+                  margin: 0;
+                  text-align: left;
+                "></ul>
+              </div>
+            </div>
+          `;
+
+          document.body.appendChild(startScreen);
+
+          // 이벤트 리스너 추가
+          document.getElementById('startButton').addEventListener('click', () => {
+            const name = document.getElementById('playerName').value.trim();
+            if (name) {
+              this.playerName = name;
+              this.startGame();
+            } else {
+              alert('플레이어 이름을 입력해주세요!');
+            }
+          });
+
+          // 초기 리더보드 로드
+          this.loadLeaderboard();
+        },
+
+        startGame: function() {
+          gameStarted = true;
+          this.isGameStarted = true;
+          this.startTime = Date.now();
+          document.getElementById('startScreen').style.display = 'none';
+          this.uiContainer.style.display = 'block';
+          this.updateTimer();
+          
+          // 게임 시작 이벤트 발생
+          this.el.emit('gameStarted');
+        },
+
+        updateTimer: function() {
+          if (!this.isGameStarted || this.isGameOver || this.isPaused) return;
+          
+          const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+          this.timerEl.querySelector('span:last-child').textContent = `생존 시간: ${elapsed}초`;
+          this.zombieCounterEl.querySelector('span:last-child').textContent = `좀비: ${this.zombieCount}마리`;
+          
+          requestAnimationFrame(this.updateTimer.bind(this));
+        },
+
+        async loadLeaderboard() {
+          try {
+            const response = await fetch('/api/records');
+            const records = await response.json();
+            
+            const leaderboardList = document.getElementById('leaderboardList');
+            leaderboardList.innerHTML = records
+              .slice(0, 3)  // 상위 3개만 사용
+              .map((record, index) => {
+                const date = new Date(record.created_at);
+                const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                
+                return `
+                  <li style="
+                    padding: 1em;
+                    margin: 0.5em 0;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 5px;
+                    font-size: 1.1em;
+                  ">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <span style="color: ${
+                        index === 0 ? '#ffd700' :  // 금색
+                        index === 1 ? '#c0c0c0' :  // 은색
+                        index === 2 ? '#cd7f32' :  // 동색
+                        'white'
+                      }">
+                        ${index + 1}위 ${record.player_name}
+                      </span>
+                      <span style="color: #ff8888">
+                        ${record.survival_time}초
+                      </span>
+                    </div>
+                    <div style="
+                      margin-top: 0.5em;
+                      font-size: 0.9em;
+                      color: #aaa;
+                      display: flex;
+                      justify-content: space-between;
+                    ">
+                      <span>좀비: ${record.zombie_count}마리</span>
+                      <span>${formattedDate}</span>
+                    </div>
+                  </li>
+                `;
+              })
+              .join('');
+          } catch (error) {
+            console.error('리더보드 로드 실패:', error);
+          }
+        },
+
+        gameWin: function() {
+          this.isGameOver = true;
+          const clearTime = Math.floor((Date.now() - this.startTime) / 1000);
+          
+          // 기록 저장 먼저 실행
+          fetch('/api/records', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              playerName: this.playerName,
+              clearTime: clearTime
+            })
+          })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('기록 저장 실패');
+            }
+            return response.json();
+          })
+          .then(() => {
+            // 승리 화면 표시
+            const winScreen = document.createElement('div');
+            winScreen.style.position = 'fixed';
+            winScreen.style.top = '0';
+            winScreen.style.left = '0';
+            winScreen.style.width = '100%';
+            winScreen.style.height = '100%';
+            winScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+            winScreen.style.display = 'flex';
+            winScreen.style.flexDirection = 'column';
+            winScreen.style.justifyContent = 'center';
+            winScreen.style.alignItems = 'center';
+            winScreen.style.zIndex = '1000';
+
+            winScreen.innerHTML = `
+              <h1 style="color: #4CAF50; font-size: 3em; margin-bottom: 0.5em;">탈출 성공!</h1>
+              <p style="color: white; font-size: 1.5em; margin-bottom: 1em;">
+                플레이어: ${this.playerName}<br>
+                클리어 시간: ${clearTime}초
+              </p>
+              <button id="restartButton" 
+                      style="padding: 0.5em 1em; font-size: 1.2em; background: #4CAF50; 
+                             color: white; border: none; cursor: pointer; margin-bottom: 2em;">
+                다시하기
+              </button>
+              <div style="color: white; text-align: center;">
+                <h2>클리어 목록</h2>
+                <ul id="winLeaderboardList" style="list-style: none; padding: 0; max-height: 300px; overflow-y: auto;"></ul>
+              </div>
+            `;
+
+            document.body.appendChild(winScreen);
+
+            // 다시하기 버튼 이벤트 리스너
+            document.getElementById('restartButton').addEventListener('click', () => {
+              window.location.reload();
+            });
+
+            // 리더보드 업데이트
+            this.loadWinLeaderboard();
+          })
+          .catch(error => {
+            console.error('기록 저장 실패:', error);
+            // 에러가 발생해도 승리 화면은 표시
+            this.showWinScreen(clearTime);
+          });
+        },
+
+        // 승리 화면용 리더보드 로드 함수
+        async loadWinLeaderboard() {
+          try {
+            const response = await fetch('/api/records');
+            const records = await response.json();
+            
+            const leaderboardList = document.getElementById('winLeaderboardList');
+            leaderboardList.innerHTML = records
+              .map((record, index) => `
+                <li style="margin: 0.5em 0; font-size: 1.2em;">
+                  ${index + 1}. ${record.player_name} - ${record.clear_time}초
+                </li>
+              `)
+              .join('');
+          } catch (error) {
+            console.error('리더보드 로드 실패:', error);
+          }
+        },
+
+        gameLose: function() {
+          this.isGameOver = true;
+          const survivalTime = Math.floor((Date.now() - this.startTime) / 1000);
+          const currentDate = new Date();
+          const formattedDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+          
+          // 기록 저장
+          fetch('/api/records', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              playerName: this.playerName,
+              clearTime: survivalTime,
+              zombieCount: this.zombieCount
+            })
+          })
+          .then(response => response.json())
+          .then(() => {
+            const gameOverScreen = document.createElement('div');
+            gameOverScreen.style.position = 'fixed';
+            gameOverScreen.style.top = '0';
+            gameOverScreen.style.left = '0';
+            gameOverScreen.style.width = '100%';
+            gameOverScreen.style.height = '100%';
+            gameOverScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+            gameOverScreen.style.display = 'flex';
+            gameOverScreen.style.flexDirection = 'column';
+            gameOverScreen.style.justifyContent = 'center';
+            gameOverScreen.style.alignItems = 'center';
+            gameOverScreen.style.zIndex = '1000';
+            gameOverScreen.style.fontFamily = 'Arial, sans-serif';
+
+            gameOverScreen.innerHTML = `
+              <div style="background: rgba(0, 0, 0, 0.8); padding: 2em; border-radius: 15px; text-align: center; max-width: 80%;">
+                <h1 style="color: #ff4444; font-size: 3em; margin-bottom: 0.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">게임 오버!</h1>
+                
+                <div style="color: white; font-size: 1.5em; margin-bottom: 1.5em; background: rgba(255, 255, 255, 0.1); padding: 1em; border-radius: 10px;">
+                  <p style="margin: 0.5em 0;">플레이어: ${this.playerName}</p>
+                  <p style="margin: 0.5em 0;">생존 시간: ${survivalTime}초</p>
+                  <p style="margin: 0.5em 0;">처치한 좀비: ${this.zombieCount}마리</p>
+                  <p style="margin: 0.5em 0; color: #aaa;">플레이 날짜: ${formattedDate}</p>
+                </div>
+
+                <button id="restartButton" 
+                        style="padding: 1em 2em; 
+                               font-size: 1.2em; 
+                               background: #ff4444; 
+                               color: white; 
+                               border: none; 
+                               border-radius: 5px;
+                               cursor: pointer;
+                               margin-bottom: 2em;
+                               transition: background 0.3s;">
+                  다시 도전하기
+                </button>
+
+                <div style="color: white; text-align: center; margin-top: 2em;">
+                  <h2 style="color: #ffdd44; margin-bottom: 1em;">최고 기록 TOP 3</h2>
+                  <div style="
+                    max-height: 300px;
+                    overflow-y: auto;
+                    padding: 1em;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 10px;
+                  ">
+                    <ul id="gameOverLeaderboardList" style="
+                      list-style: none;
+                      padding: 0;
+                      margin: 0;
+                      text-align: left;
+                    "></ul>
+                  </div>
+                </div>
+              </div>
+            `;
+
+            document.body.appendChild(gameOverScreen);
+
+            // 다시하기 버튼 호버 효과
+            const restartButton = document.getElementById('restartButton');
+            restartButton.addEventListener('mouseover', () => {
+              restartButton.style.background = '#ff6666';
+            });
+            restartButton.addEventListener('mouseout', () => {
+              restartButton.style.background = '#ff4444';
+            });
+
+            // 다시하기 버튼 클릭 이벤트
+            restartButton.addEventListener('click', () => {
+              window.location.reload();
+            });
+
+            // 게임 오버 화면의 리더보드 업데이트
+            this.loadGameOverLeaderboard();
+          })
+          .catch(error => {
+            console.error('기록 저장 실패:', error);
+          });
+        },
+
+        // 게임 오버 화면용 리더보드 로드 함수 추가
+        async loadGameOverLeaderboard() {
+          try {
+            const response = await fetch('/api/records');
+            const records = await response.json();
+            
+            const leaderboardList = document.getElementById('gameOverLeaderboardList');
+            leaderboardList.innerHTML = records
+              .slice(0, 3)  // 상위 3개만 사용
+              .map((record, index) => {
+                const date = new Date(record.created_at);
+                const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                
+                return `
+                  <li style="
+                    padding: 1em;
+                    margin: 0.5em 0;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 5px;
+                    font-size: 1.1em;
+                  ">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <span style="color: ${
+                        index === 0 ? '#ffd700' :  // 금색
+                        index === 1 ? '#c0c0c0' :  // 은색
+                        index === 2 ? '#cd7f32' :  // 동색
+                        'white'
+                      }">
+                        ${index + 1}위 ${record.player_name}
+                      </span>
+                      <span style="color: #ff8888">
+                        ${record.survival_time}초
+                      </span>
+                    </div>
+                    <div style="
+                      margin-top: 0.5em;
+                      font-size: 0.9em;
+                      color: #aaa;
+                      display: flex;
+                      justify-content: space-between;
+                    ">
+                      <span>좀비: ${record.zombie_count}마리</span>
+                      <span>${formattedDate}</span>
+                    </div>
+                  </li>
+                `;
+              })
+              .join('');
+          } catch (error) {
+            console.error('리더보드 로드 실패:', error);
+          }
+        },
+
+        showMessage: function(text, color) {
+          const messageEl = document.createElement('div');
+          messageEl.style.position = 'fixed';
+          messageEl.style.top = '50%';
+          messageEl.style.left = '50%';
+          messageEl.style.transform = 'translate(-50%, -50%)';
+          messageEl.style.color = color;
+          messageEl.style.fontSize = '48px';
+          messageEl.style.fontWeight = 'bold';
+          messageEl.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
+          messageEl.textContent = text;
+          document.body.appendChild(messageEl);
+        },
+
+        gameComplete: function() {
+          if (!this.isGameStarted || this.isGameOver) return;
+          
+          this.isGameOver = true;
+          const endTime = Date.now();
+          const clearTime = Math.floor((endTime - this.startTime) / 1000); // 초 단위로 변환
+          
+          // 게임 클리어 화면 표시
+          document.getElementById('gameOverScreen').style.display = 'flex';
+          document.getElementById('gameOverMessage').textContent = `축하합니다! ${clearTime}초 만에 클리어하셨습니다!`;
+          
+          // 플레이어 이름 입력 받기
+          const playerName = prompt('기록을 저장할 이름을 입력해주세요:');
+          if (playerName) {
+            // 서버로 기록 전송
+            fetch('/api/records', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                playerName: playerName,
+                clearTime: clearTime
+              })
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                alert('기록이 저장되었습니다!');
+                // 상위 기록 표시
+                this.showTopRecords();
+              } else {
+                alert('기록 저장에 실패했습니다.');
+              }
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              alert('기록 저장 중 오류가 발생했습니다.');
+            });
+          }
+        },
+
+        // 상위 기록 표시 함수 추가
+        showTopRecords: function() {
+          fetch('/api/records')
+            .then(response => response.json())
+            .then(records => {
+              let recordsHtml = '<h2>상위 기록</h2><ul>';
+              records.forEach((record, index) => {
+                recordsHtml += `
+                  <li>${index + 1}위: ${record.player_name} - ${record.clear_time}초</li>
+                `;
+              });
+              recordsHtml += '</ul>';
+              
+              document.getElementById('recordsList').innerHTML = recordsHtml;
+              document.getElementById('recordsList').style.display = 'block';
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              alert('기록 조회 중 오류가 발생했습니다.');
+            });
+        },
+
+        createPauseScreen: function() {
+          const pauseScreen = document.createElement('div');
+          pauseScreen.id = 'pauseScreen';
+          pauseScreen.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            font-family: Arial, sans-serif;
+          `;
+
+          pauseScreen.innerHTML = `
+            <h1 style="color: white; font-size: 3em; margin-bottom: 1em;">일시정지</h1>
+            <div style="display: flex; flex-direction: column; gap: 1em;">
+              <button id="resumeButton" style="
+                padding: 0.8em 2em;
+                font-size: 1.2em;
+                background: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                transition: background 0.3s;
+              ">게임 재개</button>
+              <button id="restartButton" style="
+                padding: 0.8em 2em;
+                font-size: 1.2em;
+                background: #f44336;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                transition: background 0.3s;
+              ">게임 재시작</button>
+            </div>
+          `;
+
+          document.body.appendChild(pauseScreen);
+
+          // 버튼 이벤트 리스너
+          document.getElementById('resumeButton').addEventListener('click', () => {
+            this.togglePause();
+          });
+
+          document.getElementById('restartButton').addEventListener('click', () => {
+            window.location.reload();
+          });
+
+          // 호버 효과
+          const buttons = pauseScreen.querySelectorAll('button');
+          buttons.forEach(button => {
+            button.addEventListener('mouseover', () => {
+              button.style.opacity = '0.9';
+              button.style.transform = 'scale(1.05)';
+            });
+            button.addEventListener('mouseout', () => {
+              button.style.opacity = '1';
+              button.style.transform = 'scale(1)';
+            });
+          });
+        },
+
+        togglePause: function() {
+          this.isPaused = !this.isPaused;
+          const pauseScreen = document.getElementById('pauseScreen');
+          
+          if (this.isPaused) {
+            pauseScreen.style.display = 'flex';
+            // 타이머 일시정지를 위해 현재 시간 저장
+            this.pauseStartTime = Date.now();
+            this.el.emit('gamePaused');
+          } else {
+            pauseScreen.style.display = 'none';
+            // 일시정지된 시간만큼 시작 시간 조정
+            const pauseDuration = Date.now() - this.pauseStartTime;
+            this.startTime += pauseDuration;
+            this.el.emit('gameResumed');
+            // 타이머 재시작
+            this.updateTimer();
+          }
+        }
+      });
+
+      // 좀비 AI 컴포넌트
+      AFRAME.registerComponent('zombie-ai', {
+        schema: {
+          target: {type: 'selector'},
+          speed: {type: 'number', default: 0.1},
+          detectionRange: {type: 'number', default: 99999},
+          attackRange: {type: 'number', default: 1}
+        },
+
+        init: function() {
+          this.zombie = this.el;
+          this.moveVector = new THREE.Vector3();
+          this.currentAnimation = '';
+          this.isGameOver = false;
+          this.targetPosition = new THREE.Vector3();
+          this.zombiePosition = new THREE.Vector3();
+
+          this.zombie.addEventListener('model-loaded', () => {
+            console.log('Model loaded for zombie:', this.el.id);
+            const model = this.zombie.getObject3D('mesh');
+            this.mixer = new THREE.AnimationMixer(model);
+            this.animations = model.animations;
+            this.actions = {};
+            
+            this.animations.forEach(animation => {
+              const action = this.mixer.clipAction(animation);
+              action.setLoop(THREE.LoopRepeat);
+              action.clampWhenFinished = true;
+              action.timeScale = 1.0;
+              this.actions[animation.name] = action;
+            });
+            
+            this.playAnimation('ZombieRunning');
+          });
+        },
+
+        tick: function(time, deltaTime) {
+          // 일시정지 상태 확인
+          if (this.el.sceneEl.components['game-manager'].isPaused) {
+            if (this.mixer) {
+              this.mixer.timeScale = 0; // 애니메이션 일시정지
+            }
+            return;
+          } else {
+            if (this.mixer) {
+              this.mixer.timeScale = 1; // 애니메이션 재개
+            }
+          }
+          if (!this.mixer || !this.data.target) return;
+          
+          const delta = Math.min(deltaTime / 1000, 0.1);
+          this.mixer.update(delta);
+          
+          if (this.el.sceneEl.components['game-manager'].isGameOver) {
+            if (!this.isGameOver) {
+              this.isGameOver = true;
+              this.playAnimation('ZombieIdle');
+            }
+            return;
+          }
+
+          // 위치 업데이트
+          this.data.target.object3D.getWorldPosition(this.targetPosition);
+          this.zombie.object3D.getWorldPosition(this.zombiePosition);
+          
+          // 이동 방향 계산
+          this.moveVector.subVectors(this.targetPosition, this.zombiePosition).normalize();
+          
+          // 이동 적용
+          const moveAmount = this.data.speed * (deltaTime / 16.67);
+          this.zombie.object3D.position.x += this.moveVector.x * moveAmount;
+          this.zombie.object3D.position.z += this.moveVector.z * moveAmount;
+          
+          // 향상된 회전 로직
+          const dx = this.targetPosition.x - this.zombiePosition.x;
+          const dz = this.targetPosition.z - this.zombiePosition.z;
+          const targetAngle = Math.atan2(dx, dz);
+          
+          // 부드러운 회전을 위한 보간
+          const currentRotation = this.zombie.object3D.rotation.y;
+          const rotationDiff = targetAngle - currentRotation;
+          
+          // 회전각 정규화 (-PI to PI)
+          let normalizedDiff = rotationDiff;
+          while (normalizedDiff > Math.PI) normalizedDiff -= Math.PI * 2;
+          while (normalizedDiff < -Math.PI) normalizedDiff += Math.PI * 2;
+          
+          // 부드러운 회전 적용
+          const rotationSpeed = 0.1;
+          this.zombie.object3D.rotation.y += normalizedDiff * rotationSpeed;
+          
+          // 거리 체크
+          const distance = this.zombiePosition.distanceTo(this.targetPosition);
+          
+          if (distance <= this.data.attackRange) {
+            this.el.sceneEl.components['game-manager'].gameLose();
+            return;
+          }
+          
+          // 애니메이션
+          if (this.currentAnimation !== 'ZombieRunning') {
+            this.playAnimation('ZombieRunning');
+          }
+        },
+
+        playAnimation: function(newAnim) {
+          if (this.currentAnimation === newAnim || !this.actions) return;
+          
+          if (this.actions[this.currentAnimation]) {
+            this.actions[this.currentAnimation].fadeOut(0.5);
+          }
+          
+          if (this.actions[newAnim]) {
+            this.actions[newAnim]
+              .reset()
+              .fadeIn(0.5)
+              .play();
+            
+            this.currentAnimation = newAnim;
+          }
+        }
+      });
+
+      AFRAME.registerComponent('zombie-spawner', {
+        schema : {
+            enabled: {default: true}
+            
+        },
+        init: function() {
+          this.spawnTimer = 0;
+          this.difficultyTimer = 0;
+          this.spawnInterval = 10000; // 10초마다 스폰
+          this.zombieSpeed = 0.1;     // 초기 좀비 속도
+          this.initialDelay = 5000;   // 5초 후 첫 스폰
+          this.hasStartedSpawning = false;
+          
+          this.el.sceneEl.addEventListener('gameStarted', () => {
+            setTimeout(() => {
+              this.hasStartedSpawning = true;
+              this.spawnZombie();
+            }, this.initialDelay);
+          });
+        },
+
+        tick: function(time, deltaTime) {
+          if (!this.hasStartedSpawning || 
+              this.el.sceneEl.components['game-manager'].isGameOver ||
+              this.el.sceneEl.components['game-manager'].isPaused) {
+            return;
+          }
+
+          this.spawnTimer += deltaTime;
+          this.difficultyTimer += deltaTime;
+          
+          // 매 30초마다 좀비 속도 증가
+          if (this.difficultyTimer >= 30000) {
+            this.difficultyTimer = 0;
+            this.zombieSpeed += 0.02;
+          }
+          
+          if (this.spawnTimer >= this.spawnInterval) {
+            this.spawnTimer = 0;
+            this.spawnZombie();
+          }
+        },
+
+        spawnZombie: function() {
+          const minX = -8;
+          const maxX = 40;
+          const minZ = -140;
+          const maxZ = 35;
+
+          const randomX = minX + Math.random() * (maxX - minX);
+          const randomZ = minZ + Math.random() * (maxZ - minZ);
+
+          const newZombie = document.createElement('a-entity');
+          newZombie.setAttribute('id', 'zombie-' + Date.now());
+          newZombie.setAttribute('gltf-model', './models/zombie/scene.gltf');
+          newZombie.setAttribute('scale', '0.02 0.02 0.02');
+          newZombie.setAttribute('animation-mixer', '');
+          newZombie.setAttribute('position', `${randomX} 0 ${randomZ}`);
+          
+          // 속도를 0.1로 설정
+          newZombie.setAttribute('zombie-ai', {
+            target: '#character',
+            speed: this.zombieSpeed,
+            detectionRange: 99999,
+            attackRange: 1
+          });
+
+          this.el.sceneEl.appendChild(newZombie);
+          console.log('New zombie spawned at:', randomX, 0, randomZ);
+
+          // 좀비 생성 후 이벤트 발생
+          this.el.sceneEl.emit('zombieSpawned');
+        }
+      });
+    </script>
+</head>
+<body>
+    <a-scene loading-screen="dotsColor: white; backgroundColor: #000000" game-manager>
+        <a-assets>
+            <a-asset-item id="map-city-01" src="/aframe/maps/city_low_poly_free/scene.gltf"></a-asset-item>
+
+        </a-assets>
+        <!-- 창고 모델 추가 -->
+        <a-entity
+            id="map"
+            gltf-model="#map-city-01"
+            position="0 -2 0"
+            scale="1 1 1"
+            rotation="0 0 0"
+            static-body
+            odd-collider>
+        </a-entity>
+
+        <!-- 조명 -->
+        <a-light type="ambient" color="#ffffff" intensity="0.5"></a-light>
+        <a-light type="directional" color="#ffffff" intensity="1" position="-1 2 1"></a-light>
+
+        <!-- 바닥 추가 -->
+        <a-plane 
+            position="15 -2 -80" 
+            rotation="-90 0 0" 
+            scale="1 3 1"
+            width="100" 
+            height="100" 
+            material="
+                color: #7BC8A4;
+                wireframe: true;
+                wireframeLinewidth: 2;
+                src: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAOxAAADsQBlSsOGwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAEQSURBVHic7ZjBDYQwDARPKYSH9N9NekgJz4MQsuPY3mSllXYeYGac9badX+f9+Nw93+f9+AIwxoAxBowxYIwBYwwYY8AYA8YYMMaAMQaMMWCMAWMMGGPAGAPGGDDGgDEGjDFgzO0Abre0Y8f+HTk/eu2j86s4/n0PYAVgjAFjDBhjwBgDxhgwxoAxBowxYIwBYwwYY8AYA8YYMMaAMQaMMWCMAWMMGGPAmNsBsP8JzHZ+FQaMMWCMAWMMGGPAGAPGGDDGgDEGjDFgjAFjDBhjwBgDxhgw5guNjCTwPZGG1gAAAABJRU5ErkJggg==);
+                repeat: 100 100"
+            shadow
+            static-body>
+        </a-plane>
+
+        <!-- 3D 모델 -->
+        <a-entity
+            id="character"
+            gltf-model="./models/player/player.gltf"
+            position="0 0 0"
+            scale="0.01 0.01 0.01"
+            rotation="0 0 0"
+            character-movement
+            obb-collider>
+        </a-entity>
+
+        <!-- 3인칭 카메라 업데이트 -->
+        <a-entity 
+            id="camera" 
+            camera 
+            position="0 2 5"
+            unreal-camera-control="
+              target: #character; 
+              distance: 5; 
+              height: 3.5;
+              rotationSpeed: 0.002; 
+              smoothFactor: 0.1;
+              tiltAngle: -10">
+            <a-cursor color="#FAFAFA"></a-cursor>
+        </a-entity>
+
+        <!-- 좀비 스포너 -->
+        <a-entity id="zombie-spawner" zombie-spawner="enabled: true"></a-entity>
+        
+        <!-- 초기 좀비는 제거 (스포너가 생성할 것이므로) -->
+    </a-scene>
+    <div id="gameOverScreen" style="display: none;">
+      <div id="gameOverMessage"></div>
+      <div id="recordsList"></div>
+      <button onclick="location.reload()">다시 시작</button>
+    </div>
+</body>
+</html>
