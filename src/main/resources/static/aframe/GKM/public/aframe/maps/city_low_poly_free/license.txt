@@ -1,0 +1,11 @@
+Model Information:
+* title:	City Low Poly Free
+* source:	https://sketchfab.com/3d-models/city-low-poly-free-696551b01630424cafdf85ccb2bed14d
+* author:	Hassan (https://sketchfab.com/H_a_s_s_a_n)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "City Low Poly Free" (https://sketchfab.com/3d-models/city-low-poly-free-696551b01630424cafdf85ccb2bed14d) by Hassan (https://sketchfab.com/H_a_s_s_a_n) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
