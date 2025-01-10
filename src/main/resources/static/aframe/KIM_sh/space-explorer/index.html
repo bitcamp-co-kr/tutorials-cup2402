@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Explorer</title>
+    <!-- 외부 라이브러리 -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="//cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/n5ro/aframe-physics-system@v4.0.1/dist/aframe-physics-system.min.js"></script>
+    
+    <!-- 게임 매니저 먼저 로드 -->
+    <script src="js/game-manager.js"></script>
+    
+    <!-- 컴포넌트 로드 -->
+    <script src="js/components/spaceship-control.js"></script>
+    <script src="js/components/collision-detector.js"></script>
+    <script src="js/components/collectable.js"></script>
+    <script src="js/components/asteroid-spawner.js"></script>
+    <script src="js/components/item-spawner.js"></script>
+    
+    <!-- 스타일시트 -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- UI 레이어 -->
+    <div id="start-screen">
+        <button id="start-button">게임 시작</button>
+    </div>
+
+    <div id="game-ui">
+        <div id="score-display">점수: 0</div>
+        <div id="fuel-display">연료: 100%</div>
+    </div>
+
+    <div id="game-over" style="display: none;">
+        <div class="game-over-content">
+            <h1>게임 오버</h1>
+            <p id="game-over-reason"></p>
+            <p id="final-score"></p>
+            <button onclick="location.reload()">다시 시작</button>
+        </div>
+    </div>
+
+    <!-- A-Frame Scene -->
+    <a-scene game-manager>
+        <a-assets>
+            <!-- 텍스처 -->
+            <img id="space" src="assets/textures/space-bg.jpg" crossorigin="anonymous">
+            <img id="asteroidTexture" src="assets/textures/asteroid.jpg" crossorigin="anonymous">
+            
+            <!-- 사운드 -->
+            <audio id="bgm" src="assets/sounds/space-bgm.mp3" type="audio/mpeg" preload="auto" loop></audio>
+<!--            <audio id="engineSound" src="assets/sounds/engine.mp3" type="audio/mpeg" preload="auto"></audio>-->
+            <audio id="thrustSound" src="assets/sounds/thrust.wav" type="audio/mpeg" preload="auto"></audio>
+            <audio id="collisionSound" src="assets/sounds/collision.wav" preload="auto"></audio>
+            <audio id="gameOverSound" src="assets/sounds/gameover.wav" preload="auto"></audio>
+            <audio id="lowFuelSound" src="assets/sounds/low-fuel.wav" preload="auto"></audio>
+<!--            <audio id="collectSound" src="assets/sounds/collect.mp3" type="audio/mpeg" preload="auto"></audio>-->
+<!--            <audio id="levelUpSound" src="assets/sounds/levelup.mp3" type="audio/mpeg" preload="auto"></audio>-->
+        </a-assets>
+
+        <!-- 환경 설정 -->
+        <a-sky src="#space" material="shader: flat"></a-sky>
+        <a-entity light="type: ambient; intensity: 0.5"></a-entity>
+        <a-entity light="type: directional; intensity: 1" position="-1 1 0"></a-entity>
+
+        <!-- 게임 매니저의 자식으로 스포너들 배치 -->
+        <a-entity id="gameManager">
+            <!-- 소행성 생성기 -->
+            <a-entity id="asteroidSpawner" asteroid-spawner="spawnDistance: 30"></a-entity>
+            <!-- 아이템 생성기 -->
+            <a-entity id="itemSpawner" item-spawner="spawnDistance: 30"></a-entity>
+        </a-entity>
+
+        <!-- 플레이어 우주선 -->
+        <a-entity id="player" position="0 1.6 0" spaceship-control>
+            <!-- 우주선 모델 -->
+            <a-entity id="spaceship-model"
+                      geometry="primitive: cone; radiusBottom: 0.5; radiusTop: 0.1; height: 2"
+                      material="color: silver; metalness: 0.8; roughness: 0.2"
+                      position="0 -1 -2"
+                      rotation="-30 15 0">
+            </a-entity>
+            
+            <!-- 우주선 히트박스 -->
+            <a-entity id="spaceship-hitbox"
+                      geometry="primitive: sphere; radius: 0.6"
+                      material="color: red; opacity: 0.5"
+                      position="0 -1 -2"
+                      rotation="-30 15 0"
+                      collision-detector>
+            </a-entity>
+            
+            <!-- 카메라 -->
+            <a-camera wasd-controls="enabled: false" 
+                     look-controls="enabled: false"
+                     position="0 0.5 5"
+                     rotation="-20 0 0">
+            </a-camera>
+        </a-entity>
+    </a-scene>
+</body>
+</html>
