@@ -47,13 +47,15 @@
             </a-plane>
             <a-box static-body obb-collider position="10 0 0" color="green" rotation="0 0 0" width="1" height="1" depth="1"></a-box>
             
-            <a-sphere dynamic-body grabbable  radius="0.5" position="-2 2 -4" color="grey"></a-sphere>
-            <a-sphere dynamic-body   radius="0.5" position="0 2 -4" color="red"></a-sphere>
-            <a-sphere dynamic-body grabbable radius="0.5" position="2 2 -4" color="yellow"></a-sphere>
+            <a-sphere dynamic-body  radius="0.5" position="-2 2 -4" color="grey"></a-sphere>
+            <a-sphere dynamic-body  radius="0.5" position="0 2 -4" color="red"></a-sphere>
+            <a-sphere dynamic-body  radius="0.5" position="2 2 -4" color="yellow"></a-sphere>
             
-            <a-camera position="0 0 0" rotation="0 0 0" wasd-controls="acceleration: 30;">
+            <a-camera position="0 0 0" rotation="0 0 0" wasd-controls="acceleration: 16;">
                 <a-cursor></a-cursor>
                 <a-box id="body" static-body obb-collider position="0 -0.5 -1" scale="0.5 0.5 0.5" visible="false"></a-box>
+                <a-entity 
+                    gltf-model="#boss" scale="0.007 0.007 0.007" position="-0.5 -0.5 -0.5" rotation="0 180 0"></a-entity>
             </a-camera>
             
         </a-scene>

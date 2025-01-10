@@ -47,8 +47,6 @@
           
           // 키보드 이벤트
           document.addEventListener('keydown', (e) => {
-            console.log('Line 49: 여기서 this 는 ', this);
-            console.log('이벤트가 발생된 타겟은 ', e.target);
             if (this.keys.hasOwnProperty(e.key.toLowerCase())) {
               this.keys[e.key.toLowerCase()] = true;
             }
@@ -65,7 +63,7 @@
             this.isMouseDown = true;
             this.previousMouseX = e.clientX;
             this.previousMouseY = e.clientY;
-            console.log('mousedown ', this);
+
           });
           
           document.addEventListener('mouseup', () => {
@@ -226,7 +224,6 @@
               this.mouseX = e.clientX;
               this.mouseY = e.clientY;
             }
-            console.log('mousedown ', this);
           });
           
           document.addEventListener('mouseup', (e) => {
@@ -1108,7 +1105,7 @@
     </script>
 </head>
 <body>
-    <a-scene loading-screen="dotsColor: white; backgroundColor: #000000" game-manager>
+    <a-scene loading-screen="dotsColor: white; backgroundColor: #000000" game-manager physics>
         <a-assets>
             <a-asset-item id="map-city-01" src="/aframe/maps/city_low_poly_free/scene.gltf"></a-asset-item>
 
@@ -1154,7 +1151,7 @@
             rotation="0 0 0"
             character-movement
             dynamic-body="
-                shape: box; 
+                shape: auto; 
                 width: 0.5; 
                 height: 2; 
                 depth: 0.5;
