@@ -127,8 +127,10 @@ AFRAME.registerComponent('spaceship-control', {
 
         if (this.keys.KeyW) position.y += moveSpeed;
         if (this.keys.KeyS) position.y -= moveSpeed;
-        if (this.keys.KeyA) position.x -= moveSpeed;
-        if (this.keys.KeyD) position.x += moveSpeed;
+        if (this.keys.KeyA) {position.x -= moveSpeed;
+            }
+        if (this.keys.KeyD) {position.x += moveSpeed;
+            }
         if (this.keys.Space) position.z -= moveSpeed * 2;
     },
 

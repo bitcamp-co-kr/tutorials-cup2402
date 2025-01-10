@@ -47,6 +47,7 @@
         <a-assets>
             <!-- 텍스처 -->
             <img id="space" src="assets/textures/space-bg.jpg" crossorigin="anonymous">
+            <a-asset-item id="spaceship" src="assets/models/spaceship/scene.gltf"></a-asset-item>
             <img id="asteroidTexture" src="assets/textures/asteroid.jpg" crossorigin="anonymous">
             
             <!-- 사운드 -->
@@ -77,10 +78,11 @@
         <a-entity id="player" position="0 1.6 0" spaceship-control>
             <!-- 우주선 모델 -->
             <a-entity id="spaceship-model"
+                      gltf-model="#spaceship"
                       geometry="primitive: cone; radiusBottom: 0.5; radiusTop: 0.1; height: 2"
                       material="color: silver; metalness: 0.8; roughness: 0.2"
                       position="0 -1 -2"
-                      rotation="-30 15 0">
+                      rotation="-10 180 0">
             </a-entity>
             
             <!-- 우주선 히트박스 -->
