@@ -45,14 +45,15 @@
             
             <a-plane static-body color="blue" scale="50 50 1" position="0 -1 0" rotation="-90 0 0">
             </a-plane>
+            <a-box static-body position="10 0 0" color="green" rotation="0 0 0" width="1" height="1" depth="1"></a-box>
             
-            <a-sphere dynamic-body grabbable  radius="0.5" position="2 8 -4" color="grey"></a-sphere>
-            <a-sphere dynamic-body grabbable  radius="0.5" position="2.1 4 -4" color="red"></a-sphere>
-            <a-sphere dynamic-body grabbable radius="0.5" position="2.2 2 -4" color="yellow"></a-sphere>
+            <a-sphere dynamic-body grabbable  radius="0.5" position="-2 2 -4" color="grey"></a-sphere>
+            <a-sphere dynamic-body   radius="0.5" position="0 2 -4" color="red"></a-sphere>
+            <a-sphere dynamic-body grabbable radius="0.5" position="2 2 -4" color="yellow"></a-sphere>
             
             <a-camera position="0 0 0" rotation="0 0 0">
                 <a-cursor></a-cursor>
-                <a-box dynamic-body grabbable position="0 0 -1" color="#aa55f9"></a-box>
+                <a-box static-body position="0 -0.5 -1" color="#aa55f9" scale="0.5 0.5 0.5"></a-box>
             </a-camera>
             
         </a-scene>
