@@ -1,0 +1,11 @@
+Model Information:
+* title:	Rigged Lynx Model
+* source:	https://sketchfab.com/3d-models/rigged-lynx-model-18f95047351f41a482bb21505c21bba0
+* author:	Dupest destup (https://sketchfab.com/pimanueledward)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Rigged Lynx Model" (https://sketchfab.com/3d-models/rigged-lynx-model-18f95047351f41a482bb21505c21bba0) by Dupest destup (https://sketchfab.com/pimanueledward) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

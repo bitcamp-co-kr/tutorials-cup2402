@@ -1,0 +1,8 @@
+Model Information:
+* title:	MAP 6
+* source:	https://sketchfab.com/3d-models/map-6-1b3926d1b1c8402e95d209764b33fc37
+* author:	Gin Kern Creative Cloud (https://sketchfab.com/GinKern)
+
+Model License:
+* license type:	SKETCHFAB Standard (https://sketchfab.com/licenses)
+* requirements:	Under basic restrictions, use worldwide, on all types of media, commercially or not, and in all types of derivative works
